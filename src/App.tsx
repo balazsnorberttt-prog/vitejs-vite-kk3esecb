@@ -47,7 +47,7 @@ const GLOBAL_CSS = `
 `;
 
 // ==========================================
-// 2. 3D HÁTTÉR (DARK & RED)
+// 2. 3D HÁTTÉR
 // ==========================================
 function FloatingDebris() {
   const mesh = useRef<any>(null);
@@ -92,7 +92,7 @@ function Scene3D() {
 }
 
 // ==========================================
-// 3. ADATBÁZIS (18+, MORBID, TRASH)
+// 3. ADATBÁZIS (18+, MORBID)
 // ==========================================
 const TRASH_CELEBS = [
   "Tóth Gabi", "Alekosz", "Varga Irén", "Berki szelleme", "Kis Grófo", "Pumped Gabo", "MC Isti", "Bartos Cs.", 
@@ -108,7 +108,7 @@ const TRASH_CELEBS = [
 ];
 
 const SITUATIONS = [
-  "A Blahán {WHO} éppen ...-t csinál a szökőkútban.",
+  "A Blaha Lujza téren {WHO} éppen ...-t csinál a szökőkútban.",
   "A Parlament közepén {WHO} ...-al keni be a meztelen testét.",
   "A ravatalozóban {WHO} véletlenül elejtett egy ...-t a koporsóba.",
   "{WHO} egy toi-toi vécében ...-t próbál lehúzni.",
@@ -201,7 +201,7 @@ const generateTasks = () => {
 };
 
 // ==========================================
-// 4. JÁTÉK LOGIKA (FIXED NEXT ROUND + SYNC)
+// 4. JÁTÉK LOGIKA (FIXED HOST CRASH)
 // ==========================================
 export default function App() {
   const [view, setView] = useState('MENU');
@@ -236,10 +236,8 @@ export default function App() {
   // --- AUTOMATIKUS TOVÁBBLÉPÉS (WATCHER) ---
   useEffect(() => {
     if (role === 'HOST' && players.length > 0) {
-        // Csak akkor lépünk, ha mindenki válasza NEM null (tehát kész)
         const allDone = players.every(p => p.answers !== null);
-        
-        // Ha mindenki kész és a nézet PLAYING vagy WAITING (hogy ne loopoljon szavazás közben)
+        // Csak akkor lépünk, ha tényleg játékban vagyunk (nem menüben, nem értékelésnél)
         if (allDone && (view === 'PLAYING' || view === 'WAITING')) {
             console.log("MINDENKI KÉSZ! INDUL A SZAVAZÁS...");
             setTimeout(() => startVotingPhase(players), 1000); 
@@ -284,13 +282,17 @@ export default function App() {
 
   const broadcast = (payload: any, type: string) => { connsRef.current.forEach(conn => conn.send({ type, payload })); };
 
-  // --- ÚJ KÖR INDÍTÁSA (JAVÍTVA) ---
+  // --- ÚJ KÖR INDÍTÁSA (TELJES RESET) ---
   const startGameHost = () => {
-    // 1. Mindenkinek új feladat + válasz RESET
+    // 1. Töröljük a szavazási indexet és a nézetet, mielőtt bármit csinálunk
+    setVotingIndex(0);
+    setVotingData(null);
+
+    // 2. Új feladatok generálása
     const updatedPlayers = players.map(p => ({ 
         ...p, 
         tasks: generateTasks(), 
-        answers: null // FONTOS: Reseteljük null-ra
+        answers: null 
     }));
     
     setPlayers(updatedPlayers); 
@@ -303,7 +305,6 @@ export default function App() {
     const hostData = updatedPlayers.find(p => p.id === roomId); 
     if(hostData) setMyTasks(hostData.tasks);
     
-    // Inputok törlése
     setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); 
     setView('PLAYING'); 
     setTimeLeft(180);
@@ -317,7 +318,8 @@ export default function App() {
       if (data.type === 'UPDATE_PLAYERS') setPlayers(data.payload);
       if (data.type === 'START_GAME') { 
           setMyTasks(data.tasks); 
-          setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); // Reset client inputs
+          setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); 
+          setVotingData(null); // Kliens is törölje a régi szavazást
           setView('PLAYING'); 
           setTimeLeft(180); 
       }
@@ -428,11 +430,9 @@ export default function App() {
           </div>
         )}
 
-        {/* GAME - BIZTONSÁGI BETÖLTÉS */}
+        {/* GAME */}
         {view === 'PLAYING' && (
-          !myTasks ? (
-             <div className="menu"><h1>TÖLTÉS...</h1></div> 
-          ) : (
+          !myTasks ? <div className="menu"><h1>TÖLTÉS...</h1></div> : (
           <div className="container">
             <div className="top-bar"><div style={{fontWeight:'bold', color:'#ff0055'}}>{myName}</div><div className="room-code" style={{color: timeLeft<10?'red':'white'}}>{timeLeft}</div></div>
             
@@ -457,15 +457,14 @@ export default function App() {
 
         {view === 'WAITING' && (<div className="menu"><h2>VÁRJUK A TÖBBIEKET...</h2><div style={{color:'#ff0055', marginBottom:'20px'}}>{players.filter(p=>p.answers).length} / {players.length} játékos kész</div><div style={{fontSize:'3rem', margin:'20px'}}>⏳</div>{role === 'HOST' && <button className="btn-action btn-secondary" style={{width:'auto', position:'relative'}} onClick={()=>startVotingPhase(players)}>KÉNYSZERÍTÉS (SKIP)</button>}</div>)}
         
-        {view === 'WAITING_NEXT_VOTE' && (<div className="menu"><h2>KÖVETKEZŐ EMBER...</h2></div>)}
+        {view === 'WAITING_NEXT_VOTE' && (<div className="menu"><h2>TÖLTÉS...</h2></div>)}
 
-        {/* --- PONTOZÁS (FORGÓSZÍNPAD) --- */}
+        {/* --- PONTOZÁS (JAVÍTOTT: Target vs Voter nézet) --- */}
         {view === 'VOTING' && votingData && (
           <div className="container">
             <h2 style={{textAlign:'center', color:'#ff0055', marginBottom:'10px'}}>
-               {votingData.id === myId ? "TÉGED ÉRTÉKELNEK:" : "MOST PONTOZZUK:"}
+               {votingData.id === myId ? "MOST A TE VÁLASZAIDAT NÉZIK!" : `MOST ŐT ÉRTÉKELJÜK: ${votingData.name}`}
             </h2>
-            <h1 style={{textAlign:'center', fontSize:'3rem', margin:0, color:'white', textShadow:'0 0 10px white'}}>{votingData.name}</h1>
             
             {/* T1 */}
             <div className="glass-card">
@@ -516,7 +515,10 @@ export default function App() {
                {votingData.id !== myId ? (
                  <button className="btn-action" onClick={submitVote}>SZAVAZATOK BEKÜLDÉSE</button>
                ) : (
-                 <div style={{padding:'20px', color:'#aaa', background:'#222', borderRadius:'10px'}}>VÁRD MEG A TÖBBIEKET...</div>
+                 <div style={{padding:'20px', color:'#aaa', background:'#222', borderRadius:'10px', textAlign:'center'}}>
+                    <div>A TÖBBIEK MOST ÉRTÉKELNEK TÉGED...</div>
+                    <div style={{fontSize:'3rem', marginTop:'10px'}}>👀</div>
+                 </div>
                )}
             </div>
           </div>

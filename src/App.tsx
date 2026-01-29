@@ -1,185 +1,172 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Peer from 'peerjs';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Sphere, MeshDistortMaterial } from '@react-three/drei';
-import * as THREE from 'three';
+import { Sphere } from '@react-three/drei';
 
-// --- ADATOK ---
-const KATEGORIAK = [
-  "Dolog a hűtőben", "Indok késésre", "Amit nem mondasz rendőrnek",
-  "Híresség", "Testrész", "Tárgy a táskádban", "Étel amit utálsz"
-];
+// --- STÍLUSOK (BELEÉGETVE, HOGY NE ESSEN SZÉT) ---
+const styles: any = {
+  container: {
+    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+    backgroundColor: '#050505', color: 'white', fontFamily: 'Arial, sans-serif',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden', zIndex: 9999
+  },
+  box: {
+    backgroundColor: 'rgba(20, 20, 20, 0.9)', padding: '20px', borderRadius: '15px',
+    border: '2px solid #00f3ff', textAlign: 'center', width: '85%', maxWidth: '400px',
+    display: 'flex', flexDirection: 'column', gap: '15px', zIndex: 10000,
+    boxShadow: '0 0 20px rgba(0, 243, 255, 0.3)'
+  },
+  title: { fontSize: '3rem', margin: 0, color: '#00f3ff', textTransform: 'uppercase', fontWeight: 'bold' },
+  text: { fontSize: '1.2rem', margin: 0, color: '#ddd' },
+  input: {
+    padding: '15px', fontSize: '1.2rem', borderRadius: '8px', border: '1px solid white',
+    backgroundColor: '#333', color: 'white', width: '100%', boxSizing: 'border-box', textAlign: 'center'
+  },
+  btn: {
+    padding: '15px', fontSize: '1.2rem', borderRadius: '50px', border: 'none',
+    cursor: 'pointer', width: '100%', fontWeight: 'bold', textTransform: 'uppercase'
+  },
+  btnPrimary: { backgroundColor: '#00f3ff', color: 'black' },
+  btnSecondary: { backgroundColor: '#444', color: 'white' },
+  debug: { position: 'fixed', bottom: 10, left: 10, fontSize: '10px', color: 'yellow', zIndex: 99999 }
+};
 
-const generateRoomId = () => Math.floor(1000 + Math.random() * 9000).toString();
-
-// --- 3D GÖMB ---
-function CyberBomb({ urgency }: { urgency: number }) {
-  const meshRef = useRef<THREE.Mesh>(null!);
-  const color = new THREE.Color().lerpColors(new THREE.Color('#00f3ff'), new THREE.Color('#ff0055'), urgency);
-  
+// --- EGYSZERŰ 3D GÖMB ---
+function SimpleBomb({ active }: { active: boolean }) {
+  const ref: any = useRef();
   useFrame((state) => {
-    if (!meshRef.current) return;
-    const s = 1.5 + Math.sin(state.clock.elapsedTime * (2 + urgency * 10)) * (0.05 + urgency * 0.2);
-    meshRef.current.scale.set(s, s, s);
+    if (ref.current) {
+      ref.current.rotation.y += 0.01;
+      const scale = active ? 1.5 + Math.sin(state.clock.elapsedTime * 5) * 0.2 : 1.2;
+      ref.current.scale.set(scale, scale, scale);
+    }
   });
-
   return (
-    <Sphere ref={meshRef} args={[1.5, 32, 32]}>
-      <MeshDistortMaterial color={color} emissive={color} emissiveIntensity={0.5 + urgency} distort={0.4} speed={3} />
+    <Sphere ref={ref} args={[1, 16, 16]}>
+      <meshStandardMaterial color={active ? "red" : "#00f3ff"} wireframe />
     </Sphere>
   );
 }
 
-// --- APP ---
+// --- FŐ LOGIKA ---
 export default function App() {
-  const [view, setView] = useState('MENU'); // MENU, LOBBY, GAME, OVER
-  const [role, setRole] = useState('');
-  const [roomId, setRoomId] = useState('');
-  const [joinCode, setJoinCode] = useState('');
+  const [view, setView] = useState('MENU'); 
+  const [status, setStatus] = useState('Betöltés...');
+  const [myId, setMyId] = useState('');
+  const [targetId, setTargetId] = useState('');
+  const [msg, setMsg] = useState('Várakozás...');
   
-  const [category, setCategory] = useState('');
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [turn, setTurn] = useState('HOST');
-  const [lastWord, setLastWord] = useState('');
-  const [input, setInput] = useState('');
-
   const peerRef = useRef<Peer | null>(null);
   const connRef = useRef<any>(null);
 
-  // --- HÁLÓZAT ---
-  const startHost = () => {
-    const id = generateRoomId();
-    const peer = new Peer(id);
-    peer.on('open', (id) => { setRoomId(id); setRole('HOST'); setView('LOBBY'); });
-    peer.on('connection', (conn) => {
-      connRef.current = conn;
-      conn.on('data', handleData);
-      setTimeout(() => startGame('HOST'), 1000);
-    });
-    peerRef.current = peer;
-  };
-
-  const joinGame = () => {
-    if (joinCode.length < 4) return;
-    const peer = new Peer();
-    peer.on('open', () => {
-      const conn = peer.connect(joinCode);
-      connRef.current = conn;
-      setRole('CLIENT'); setView('LOBBY');
-      conn.on('data', handleData);
-    });
-    peerRef.current = peer;
-  };
-
-  const handleData = (data: any) => {
-    if (data.type === 'UPDATE') {
-      setView(data.view); setCategory(data.cat); setTimeLeft(data.time);
-      setTurn(data.turn); setLastWord(data.word);
-    }
-  };
-
-  const startGame = (myRole: string) => {
-    if (myRole === 'HOST') {
-      const cat = KATEGORIAK[Math.floor(Math.random() * KATEGORIAK.length)];
-      broadcast(cat, 30, 'HOST', 'GAME', '');
-    }
-  };
-
-  const broadcast = (cat: string, time: number, trn: string, vw: string, word: string) => {
-    setCategory(cat); setTimeLeft(time); setTurn(trn); setView(vw); setLastWord(word);
-    if (connRef.current) {
-      connRef.current.send({ type: 'UPDATE', cat, time, turn: trn, view: vw, word });
-    }
-  };
-
-  // --- IDŐZÍTŐ ---
+  // 1. PeerJS INDÍTÁSA (AZONNAL)
   useEffect(() => {
-    if (role === 'HOST' && view === 'GAME') {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 0) { broadcast(category, 0, turn, 'OVER', lastWord); return 0; }
-          if (Math.floor(prev*10)%10 === 0) broadcast(category, prev - 0.1, turn, 'GAME', lastWord);
-          return prev - 0.1;
-        });
-      }, 100);
-      return () => clearInterval(timer);
-    }
-  }, [role, view, turn, category, lastWord]);
+    setStatus("PeerJS inicializálás...");
+    try {
+      const peer = new Peer();
+      
+      peer.on('open', (id) => {
+        setMyId(id);
+        setStatus("Online! ID kész.");
+      });
 
-  const submit = (e: any) => {
-    e.preventDefault();
-    if (role === 'HOST') broadcast(category, timeLeft, 'CLIENT', 'GAME', input);
-    else connRef.current.send({ type: 'ACTION', word: input }); // Host majd kezeli
-    setInput('');
+      peer.on('connection', (conn) => {
+        connRef.current = conn;
+        setView('GAME');
+        setMsg("Valaki csatlakozott hozzád!");
+        setupConnection(conn);
+      });
+
+      peer.on('error', (err) => {
+        setStatus("HIBA: " + err.type);
+      });
+
+      peerRef.current = peer;
+    } catch (e: any) {
+      setStatus("KRITIKUS HIBA: " + e.message);
+    }
+  }, []);
+
+  const setupConnection = (conn: any) => {
+    conn.on('data', (data: any) => {
+      setMsg("Üzenet jött: " + data);
+    });
+    conn.on('open', () => {
+      setMsg("Kapcsolat él!");
+    });
   };
 
-  const urgency = Math.max(0, 1 - (timeLeft / 30));
+  const connectTo = () => {
+    if (!targetId) return;
+    setStatus("Csatlakozás ide: " + targetId);
+    if (peerRef.current) {
+      const conn = peerRef.current.connect(targetId);
+      connRef.current = conn;
+      setView('GAME');
+      setupConnection(conn);
+    }
+  };
+
+  const sendPing = () => {
+    if (connRef.current) {
+      connRef.current.send("BUMM!");
+      setMsg("Elküldve: BUMM!");
+    } else {
+      setMsg("Nincs kapcsolat!");
+    }
+  };
 
   return (
-    <>
-      {/* 3D HÁTTÉR */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
-        <Canvas camera={{ position: [0, 0, 5] }}>
+    <div style={styles.container}>
+      
+      {/* HÁTTÉR */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: -1 }}>
+        <Canvas>
           <ambientLight intensity={0.5} />
-          <Stars />
-          <CyberBomb urgency={urgency} />
+          <pointLight position={[10, 10, 10]} />
+          <SimpleBomb active={view === 'GAME'} />
         </Canvas>
       </div>
 
-      {/* KEZELŐFELÜLET (UI) */}
-      <div className="ui-layer">
-        
-        {view === 'MENU' && (
-          <div className="interactive">
-            <h1 className="title-main">TIK-TAK<br/>BUMM</h1>
-            <button className="btn btn-start" onClick={startHost}>ÚJ SZOBA</button>
-            <p>- VAGY -</p>
-            <input className="game-input" placeholder="KÓD" value={joinCode} onChange={e=>setJoinCode(e.target.value)} />
-            <button className="btn btn-join" onClick={joinGame}>CSATLAKOZÁS</button>
-          </div>
-        )}
+      {/* HIBAKERESŐ NAPLÓ (HOGY LÁSD MI A BAJ) */}
+      <div style={styles.debug}>STATUS: {status} | ID: {myId}</div>
 
-        {view === 'LOBBY' && (
-          <div className="interactive">
-            <h2>KÓD: <span style={{color:'#ffdd00', fontSize:'2rem'}}>{roomId || joinCode}</span></h2>
-            <p>Várakozás...</p>
-          </div>
-        )}
+      {/* MENÜ NÉZET */}
+      {view === 'MENU' && (
+        <div style={styles.box}>
+          <h1 style={styles.title}>TIK-TAK</h1>
+          <p style={styles.text}>A Te kódod:</p>
+          <h2 style={{fontSize: '2rem', margin: 0, color: 'yellow', wordBreak: 'break-all'}}>{myId || "Generálás..."}</h2>
+          
+          <div style={{width: '100%', height: '2px', background: '#555', margin: '10px 0'}}></div>
+          
+          <input 
+            style={styles.input} 
+            placeholder="Barát kódja ide" 
+            value={targetId} 
+            onChange={e => setTargetId(e.target.value)}
+          />
+          <button style={{...styles.btn, ...styles.btnPrimary}} onClick={connectTo}>
+            CSATLAKOZÁS
+          </button>
+        </div>
+      )}
 
-        {view === 'GAME' && (
-          <div className="interactive">
-            <p style={{color:'#aaa'}}>TÉMA:</p>
-            <h2 style={{color:'#00f3ff'}}>{category}</h2>
-            
-            {role === turn ? (
-              <div style={{width:'100%'}}>
-                <h2 style={{color:'#ff0055', margin:'10px 0'}}>TE JÖSSZ!</h2>
-                <form onSubmit={submit}>
-                  <input autoFocus className="game-input" value={input} onChange={e=>setInput(e.target.value)} />
-                  <button className="btn btn-submit">KÜLDÉS</button>
-                </form>
-              </div>
-            ) : (
-              <div style={{margin:'20px 0'}}>
-                <h2>VÁRJ...</h2>
-                <p>A másik ír: {lastWord}</p>
-              </div>
-            )}
+      {/* JÁTÉK NÉZET (TESZT) */}
+      {view === 'GAME' && (
+        <div style={styles.box}>
+          <h1 style={styles.title}>JÁTÉK</h1>
+          <p style={{fontSize: '1.5rem', fontWeight: 'bold'}}>{msg}</p>
+          <button style={{...styles.btn, ...styles.btnPrimary}} onClick={sendPing}>
+            BOMBA KÜLDÉSE 💣
+          </button>
+          <button style={{...styles.btn, ...styles.btnSecondary}} onClick={() => window.location.reload()}>
+            KILÉPÉS
+          </button>
+        </div>
+      )}
 
-            <div className="timer-bar">
-              <div className="timer-fill" style={{width: `${(timeLeft/30)*100}%`, background: timeLeft<5?'red':'#00f3ff'}} />
-            </div>
-          </div>
-        )}
-
-        {view === 'OVER' && (
-          <div className="interactive" style={{borderColor:'red'}}>
-            <h1 style={{color:'red', fontSize:'3rem'}}>BUMM!</h1>
-            <button className="btn btn-start" onClick={() => window.location.reload()}>ÚJRA</button>
-          </div>
-        )}
-
-      </div>
-    </>
+    </div>
   );
 }

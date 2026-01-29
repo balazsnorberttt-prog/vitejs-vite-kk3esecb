@@ -1,107 +1,226 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');
 
-/* ALAPBEÁLLÍTÁSOK */
 :root {
-  --neon-blue: #00f3ff;
-  --neon-red: #ff0055;
+  --neon-cyan: #00f3ff;
+  --neon-pink: #ff0055;
   --neon-yellow: #ffdd00;
-  --bg-dark: #050505;
+  --glass-bg: rgba(0, 0, 0, 0.7);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-body, html {
+body {
   margin: 0;
   padding: 0;
-  width: 100%;
-  height: 100%;
-  background-color: var(--bg-dark);
+  background-color: #050505;
   color: white;
   font-family: 'Montserrat', sans-serif;
-  overflow: hidden; /* Nincs görgetés */
+  overflow: hidden;
 }
 
-/* UI RÉTEG - ENNEK KELL KÖZÉPEN LENNIE */
-.ui-layer {
-  position: fixed !important;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  z-index: 9999 !important; /* Mindig legelöl */
-  pointer-events: none;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-/* KATTINTHATÓ DOBOZOK */
-.interactive {
-  pointer-events: auto;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 30px;
-  border-radius: 20px;
-  border: 2px solid var(--neon-blue);
-  width: 90%;
-  max-width: 400px;
-  text-align: center;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+/* FŐ TARTÁLY */
+.app-container {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  z-index: 10;
 }
 
-/* SZÖVEGEK */
-h1.title-main {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 4rem;
-  margin: 0;
-  color: var(--neon-blue);
-  text-shadow: 0 0 20px var(--neon-blue);
-  line-height: 1;
+/* FELSŐ SÁV */
+.top-bar {
+  height: 80px;
+  background: rgba(0,0,0,0.8);
+  border-bottom: 2px solid var(--neon-pink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  backdrop-filter: blur(10px);
 }
 
-h2 { margin: 0; font-size: 1.5rem; text-transform: uppercase; }
-p { margin: 0; color: #ccc; }
-
-/* INPUT MEZŐ */
-input.game-input {
-  width: 100%;
-  padding: 15px;
-  font-size: 1.5rem;
+.score-box {
   text-align: center;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid white;
-  color: white;
-  border-radius: 10px;
   font-weight: bold;
   text-transform: uppercase;
+  color: var(--neon-cyan);
+}
+
+.timer-box {
+  font-size: 2.5rem;
+  font-weight: 900;
+  text-shadow: 0 0 15px var(--neon-pink);
+}
+
+/* JÁTÉKTÉR (OSZTOTT) */
+.split-area {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.player-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 20px;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.2);
+}
+
+/* KÁRTYA DIZÁJN */
+.task-card {
+  background: rgba(20, 20, 30, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  padding: 20px;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  transition: transform 0.2s;
+}
+
+.task-card:hover {
+  border-color: var(--neon-cyan);
+}
+
+.task-header {
+  font-size: 0.8rem;
+  color: var(--neon-pink);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.task-text {
+  font-size: 1.1rem;
+  line-height: 1.5;
+  margin-bottom: 15px;
+  color: #eee;
+}
+
+.highlight {
+  color: var(--neon-yellow);
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.letters-badge {
+  display: inline-block;
+  background: linear-gradient(45deg, #333, #000);
+  border: 1px solid #555;
+  color: var(--neon-yellow);
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-family: monospace;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  box-shadow: 0 0 10px rgba(255, 221, 0, 0.2);
+}
+
+/* INPUT MEZŐK */
+.cyber-input {
+  width: 100%;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: var(--neon-cyan);
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-align: center;
+  outline: none;
   box-sizing: border-box;
+  transition: all 0.3s;
+}
+
+.cyber-input:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+}
+
+/* SZTORILÁNC */
+.story-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chain-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.celeb-badge {
+  background: var(--neon-pink);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  min-width: 100px;
+  text-align: center;
+}
+
+/* PONTOZÁS SLIDER */
+.rating-box {
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(255, 0, 85, 0.1);
+  border-radius: 8px;
+  border: 1px dashed var(--neon-pink);
+}
+
+input[type=range] {
+  width: 100%;
+  accent-color: var(--neon-pink);
+  cursor: pointer;
 }
 
 /* GOMBOK */
-button.btn {
+.action-btn {
   width: 100%;
-  padding: 15px;
-  font-size: 1.2rem;
+  padding: 20px;
+  font-size: 1.5rem;
   font-weight: 900;
   text-transform: uppercase;
   border: none;
-  border-radius: 50px;
+  background: var(--neon-cyan);
+  color: black;
   cursor: pointer;
-  font-family: 'Montserrat', sans-serif;
-  transition: transform 0.1s;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  transition: background 0.2s;
 }
-button.btn:active { transform: scale(0.95); }
-.btn-start { background: var(--neon-blue); color: black; box-shadow: 0 0 15px var(--neon-blue); }
-.btn-join { background: #333; color: white; border: 1px solid #555; }
-.btn-submit { background: linear-gradient(90deg, var(--neon-blue), #0099ff); color: white; }
-.btn-veto { background: var(--neon-red); color: white; animation: pulse 1s infinite; }
 
-/* EXTRÁK */
-.timer-bar { width: 100%; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 10px; }
-.timer-fill { height: 100%; transition: width 0.1s linear; }
+.action-btn:hover {
+  background: white;
+}
 
-@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+/* MENU */
+.menu-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #220022 0%, #000 100%);
+}
+
+.big-title {
+  font-size: 5rem;
+  color: var(--neon-pink);
+  text-shadow: 0 0 30px var(--neon-pink);
+  margin: 0;
+  line-height: 1;
+  text-align: center;
+}

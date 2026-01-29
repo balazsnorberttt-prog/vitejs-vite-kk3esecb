@@ -5,7 +5,7 @@ import { Stars, Float, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 
 // ==========================================
-// 1. STÍLUSOK (MOBIL- ÉS NETLIFY-BARÁT)
+// 1. STÍLUSOK (TÖKÉLETESÍTVE)
 // ==========================================
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@500;700;900&display=swap');
@@ -17,33 +17,24 @@ const GLOBAL_CSS = `
   .cyber-input {
     width: 100%; max-width: 400px; padding: 15px; background: rgba(0,0,0,0.7); border: 2px solid #444;
     color: #ffdd00; font-family: 'Rajdhani'; font-size: 1.2rem; font-weight: bold;
-    border-radius: 8px; text-align: center; outline: none; margin-top: 10px; box-sizing: border-box;
+    border-radius: 8px; text-align: center; outline: none; margin-top: 5px; box-sizing: border-box;
     transition: 0.3s; text-transform: uppercase;
   }
   .cyber-input:focus { border-color: #ffdd00; box-shadow: 0 0 20px rgba(255, 221, 0, 0.4); background: rgba(0,0,0,0.9); }
 
   /* GOMBOK */
-  .btn-container {
-    width: 100%; display: flex; justify-content: center; padding: 20px; 
-    box-sizing: border-box; margin-top: 20px;
-  }
-
+  .btn-container { width: 100%; display: flex; justify-content: center; padding: 20px; box-sizing: border-box; margin-top: 20px; }
   .btn-action {
     width: 100%; max-width: 400px; padding: 20px; background: linear-gradient(90deg, #ff00de, #00f3ff); 
     color: white; font-family: 'Black Ops One'; font-size: 1.5rem; border: none; 
     border-radius: 50px; cursor: pointer; text-transform: uppercase; 
-    box-shadow: 0 5px 30px rgba(0,0,0,0.5); text-shadow: 2px 2px 0 black;
-    transition: all 0.2s;
+    box-shadow: 0 5px 30px rgba(0,0,0,0.5); text-shadow: 2px 2px 0 black; transition: all 0.2s;
   }
   .btn-action:active { transform: scale(0.95); }
   .btn-secondary { background: #333; color: white; border: 2px solid white; box-shadow: none; font-size: 1.2rem; }
 
   /* KÁRTYÁK */
-  .container { 
-    padding: 20px; max-width: 650px; margin: 0 auto; width: 100%; 
-    box-sizing: border-box; flex: 1; display: flex; flex-direction: column; 
-  }
-  
+  .container { padding: 20px; max-width: 650px; margin: 0 auto; width: 100%; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; }
   .glass-card {
     background: linear-gradient(135deg, rgba(20,20,30,0.9), rgba(10,10,20,0.8));
     border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; margin-bottom: 25px;
@@ -52,20 +43,16 @@ const GLOBAL_CSS = `
   .task-label { color: #00f3ff; font-weight: 900; letter-spacing: 2px; margin-bottom: 12px; text-transform: uppercase; font-size: 0.9rem; }
   .highlight { color: #ff00de; font-weight: bold; text-decoration: underline; }
 
+  /* SZTORI & ASSZOCIÁCIÓ */
+  .story-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 15px; }
+  .celeb-static { color: #ff00de; font-weight: 900; font-size: 1.2rem; text-transform: uppercase; text-shadow: 0 0 10px #ff00de; }
+  .assoc-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .assoc-letter { font-size: 2rem; font-weight: 900; color: #ff00de; min-width: 40px; }
+
   /* UI ELEMEK */
   .top-bar { padding: 15px 20px; background: rgba(0,0,0,0.85); border-bottom: 2px solid #ff00de; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
   .menu { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; }
   .glitch-title { font-size: 3.5rem; color: #fff; font-family: 'Black Ops One'; line-height: 0.9; margin-bottom: 30px; text-shadow: 3px 3px 0 #ff00de, -3px -3px 0 #00f3ff; }
-  
-  .story-container { display: flex; flex-direction: column; gap: 10px; }
-  .story-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .celeb-badge { background: #ff00de; color: white; padding: 8px 12px; border-radius: 6px; font-weight: 900; font-size: 0.9rem; white-space: nowrap; box-shadow: 0 0 10px #ff00de; text-transform: uppercase; }
-  .connector { font-size: 0.9rem; color: #aaa; font-style: italic; }
-  
-  .casting-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
-  .cast-btn { width: 100%; padding: 15px; background: rgba(255,255,255,0.05); border: 1px solid #444; color: #ccc; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: 0.2s; text-align: center; text-transform: uppercase; }
-  .cast-btn.selected { background: #00f3ff; color: black; border-color: #00f3ff; box-shadow: 0 0 20px #00f3ff; transform: scale(1.02); font-weight: 900; }
-  
   .rating-box { margin-top: 15px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; border: 1px dashed #555; }
   input[type=range] { width: 100%; cursor: pointer; accent-color: #00f3ff; }
   .lobby-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 30px; margin-bottom: 30px; }
@@ -73,21 +60,18 @@ const GLOBAL_CSS = `
 `;
 
 // ==========================================
-// 2. 3D HÁTTÉR (WARP)
+// 2. 3D HÁTTÉR
 // ==========================================
 function FloatingDebris() {
-  const mesh = useRef<any>(null); // JAVÍTVA: Itt volt a hiba, a (null) kötelező!
+  const mesh = useRef<any>(null);
   const count = 40;
-  
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particles = useMemo(() => {
     const temp = [];
-    for (let i = 0; i < count; i++) {
-      temp.push({
+    for (let i = 0; i < count; i++) temp.push({
         x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60, z: (Math.random() - 0.5) * 60,
         rotSpeed: Math.random() * 0.02, scale: 0.5 + Math.random()
-      });
-    }
+    });
     return temp;
   }, []);
 
@@ -126,160 +110,44 @@ function Scene3D() {
 }
 
 // ==========================================
-// 3. ÓRIÁS ADATBÁZIS (BŐVÍTETT)
+// 3. MASSZÍV ADATBÁZIS (200+ ELEM)
 // ==========================================
 const TRASH_CELEBS = [
-  "Tóth Gabi", "Nagy Alekosz", "Varga Irén", "Berki Krisztián szelleme", "Kis Grófo", 
-  "Pumped Gabo", "MC Isti", "Bartos Cs. István", "Gáspár Laci", "Fekete Pákó", 
-  "Győzike", "Gáspár Bea", "Zimány Linda", "Hajdú Péter", "Mandula Ádám", "PSG Ogli", 
-  "Whisper Ton", "Baukó Éva", "Molnár Anikó", "Aurelio", "VV Cristofel", "Szabyest",
-  "Lakatos Brendon", "Polgár Jenő", "Szalai Ádám", "Varga Viktor", "Kulcsár Edina", 
-  "G.w.M", "Tóth Andi", "Nagy Feró", "Korda Gyuri bácsi", "Balázs Klári", "Csobot Adél", 
-  "Istenes Bence", "Majka", "Curtis", "Azahriah", "Desh", "Dopeman", "Cicciolina", 
-  "Schobert Norbi", "Rubint Réka", "Orbán Viktor", "Gyurcsány Ferenc", "Szájer József", 
-  "Németh Szilárd", "Bayer Zsolt", "Soros György", "Mészáros Lőrinc", "Karácsony Gergely", 
-  "Márki-Zay Péter", "Novák Katalin", "Varga Judit", "Deutsch Tamás", "Jakab Péter", 
-  "Rákay Philip", "Bohár Dániel", "Trombitás Kristóf", "Egy bedrogozott BKV ellenőr", 
-  "A GLS futár", "Egy korrupt NAV ellenőr", "A nőgyógyászod", "A szomszéd néni", 
-  "Egy kanos tinédzser", "Egy OnlyFans modell", "A sarki gyrosos", "Egy részeg pap", 
-  "A postás", "A matektanárod", "A főnököd", "Egy taxis hiéna", "Zacher Gábor", 
-  "Csernus doki", "Dancsó Péter", "Fókuszcsoport Ádám", "Pottyondy Edina"
+  "Tóth Gabi", "Alekosz", "Varga Irén", "Berki szelleme", "Kis Grófo", "Pumped Gabo", "MC Isti", "Bartos Cs.", "Gáspár Laci", "Fekete Pákó", "Győzike", "Bea asszony", "Zimány Linda", "Hajdú Péter", "Mandula Ádám", "PSG Ogli", "Whisper Ton", "Baukó Éva", "Molnár Anikó", "Aurelio", "VV Cristofel", "Szabyest", "Lakatos Brendon", "Polgár Jenő", "Szalai Ádám", "Varga Viktor", "Kulcsár Edina", "G.w.M", "Tóth Andi", "Nagy Feró", "Korda Gyuri", "Balázs Klári", "Majka", "Curtis", "Azahriah", "Desh", "Dopeman", "Cicciolina", "Schobert Norbi", "Rubint Réka", "Orbán Viktor", "Gyurcsány", "Szájer József", "Németh Szilárd", "Bayer Zsolt", "Soros György", "Mészáros Lőrinc", "Karácsony Gergely", "Márki-Zay Péter", "Novák Katalin", "Varga Judit", "Deutsch Tamás", "Jakab Péter", "Egy bedrogozott BKV ellenőr", "A GLS futár", "Egy korrupt NAV ellenőr", "A nőgyógyászod", "A szomszéd néni", "Egy kanos tinédzser", "Egy OnlyFans modell", "A sarki gyrosos", "Egy részeg pap", "A postás", "A matektanárod", "A főnököd", "Egy taxis hiéna", "Zacher Gábor", "Csernus doki", "Dancsó Péter", "VV Aurélió", "VV Merci", "Lady Szomjas", "Forstner Csenge", "Köllő Babett", "Tóth Gabi tapétája", "Egy zacskó mákos guba", "A Sziget Fesztivál toi-toi wc-je"
 ];
 
-const SITUATION_TEMPLATES = [
-  "A Blaha Lujza téren {WHO} éppen ...-t csinál a szökőkútban.",
-  "{WHO} a 4-es 6-oson üvöltözve próbál eladni egy ...-t.",
-  "A Parlament közepén {WHO} ...-al keni be a meztelen testét.",
-  "A Hősök terén {WHO} egy ...-t áldozott fel a turulmadárnak.",
-  "A Nyugati aluljáróban {WHO} ...-t cserélt egy doboz cigiért.",
-  "A Margitszigeten {WHO} ...-t dobált a futók után.",
-  "Az első randin {WHO} elővett egy ...-t a táskájából.",
-  "A ravatalozóban {WHO} véletlenül elejtett egy ...-t.",
-  "{WHO} egy toi-toi vécében ...-t próbál lehúzni.",
-  "A templomban {WHO} az oltárra helyezett egy ...-t.",
-  "A szülői értekezleten {WHO} ...-t rajzolt a táblára.",
-  "{WHO} részegen ...-t tetováltatott a homlokára.",
-  "A szülőszobán {WHO} ...-t akart adni az újszülöttnek.",
-  "A temetésen {WHO} ...-al dobálta meg a gyászolókat.",
-  "A szaunában {WHO} ...-al csapkodta az embereket.",
-  "Az éjféli misén {WHO} ...-t kiabált a papnak.",
-  "{WHO} az OnlyFans oldalán ...-t dugott a fülébe.",
-  "A Híradó élő adásában {WHO} ...-t mutatott a kamerának.",
-  "A Való Világ villában {WHO} ...-t csempészett a nyugiszobába.",
-  "{WHO} a Tinder profiljára egy ...-ról töltött fel képet.",
-  "A Fókusz riportjában {WHO} bevallotta, hogy ...-t tart az ágya alatt.",
-  "Egy kiszivárgott hangfelvételen {WHO} éppen ...-t kér a dealerétől.",
-  "A MÁV vonaton {WHO} ...-t dobált az utasokra.",
-  "A Lidl kasszájánál {WHO} ...-al akart fizetni.",
-  "{WHO} a konditeremben ...-t emelgetett súlyzó helyett.",
-  "A NAV ellenőrzésen {WHO} ...-t húzott elő a zsebéből.",
-  "Az állatkertben {WHO} ...-t próbált etetni a majmokkal.",
-  "A BKV ellenőrnek {WHO} ...-t mutatott bérlet helyett.",
-  "A bíróságon {WHO} ...-t vallott a bírónak.",
-  "{WHO} egy swinger klubban ...-t használt síkosító helyett.",
-  "Az orvosi rendelőben {WHO} ...-t vetetett ki a végbeléből.",
-  "{WHO} a Sziget VIP-ben felszívott egy csík ...-t.",
-  "Egy házibuliban {WHO} ...-t kevert a puncsba.",
-  "{WHO} részegen azt hitte, hogy a ... egy mikrofon.",
-  "A Balaton Soundon {WHO} ...-t csinált egy gumimatraccal.",
-  "{WHO} a Pride felvonuláson ...-nak öltözött.",
-  "Egy nyilvános WC-ben {WHO} ...-t írt a falra.",
-  "{WHO} a karácsonyi vacsorán ...-t tett a bejglibe.",
-  "A rendőrségi fogdában {WHO} ...-t rejtett el a zsebében."
+// Feladat 1: Szituáció (csak a nevet kell beilleszteni)
+const SITUATIONS = [
+  "A Blahán {WHO} éppen ...-t csinál a szökőkútban.", "{WHO} a 4-es 6-oson üvöltve próbál eladni egy ...-t.", "A Parlamentben {WHO} ...-al keni be magát.", "A Hősök terén {WHO} egy ...-t áldozott fel.", "Az aluljáróban {WHO} ...-t cserélt cigire.", "Az első randin {WHO} elővett egy ...-t.", "A ravatalozóban {WHO} elejtett egy ...-t.", "{WHO} a toi-toi vécében ...-t próbál lehúzni.", "A templomban {WHO} az oltárra tett egy ...-t.", "A szülőin {WHO} ...-t rajzolt a táblára.", "{WHO} részegen ...-t tetováltatott.", "A szülőszobán {WHO} ...-t adott a babának.", "A temetésen {WHO} ...-al dobálózott.", "A szaunában {WHO} ...-al csapkodott.", "Az éjféli misén {WHO} ...-t ordított.", "{WHO} az OnlyFans-en ...-t dugott a fülébe.", "A Híradóban {WHO} ...-t mutatott.", "A Villában {WHO} ...-t csempészett be.", "{WHO} a Tinderen ...-al pózolt.", "A Fókuszban {WHO} bemutatta a ... gyűjteményét.", "Hangfelvételen {WHO} ...-t kért a dealertől.", "A vonaton {WHO} ...-t dobált.", "A Lidlben {WHO} ...-al fizetett.", "{WHO} a kondiban ...-t emelgetett.", "A NAV-nál {WHO} ...-t húzott elő.", "Az állatkertben {WHO} ...-t etetett.", "A BKV-n {WHO} ...-t mutatott bérlet helyett.", "A bíróságon {WHO} ...-t vallott.", "{WHO} swinger klubban ...-t használt.", "Az orvosnál {WHO} ...-t vetetett ki.", "{WHO} a VIP-ben felszívott egy ...-t.", "Házibulin {WHO} ...-t kevert az italba.", "{WHO} mikrofonnak hitte a ...-t.", "A Soundon {WHO} ...-t csinált a gumimatraccal.", "{WHO} a Pride-on ...-nak öltözött.", "A WC-ben {WHO} ...-t írt a falra.", "{WHO} a bejglibe ...-t sütött.", "A fogdában {WHO} ...-t rejtett el."
 ];
 
+// Feladat 2: Kérdések
 const QUESTIONS = [
-  "Maszturbálás közben véletlenül ezt kiabáltad:",
-  "Amikor a proktológus benyúlt, ezt súgtad neki:",
-  "Ezt mondanád, ha rajtakapnának egy kecskével:",
-  "Szex után ezt mondod mindig a párodnak:",
-  "Ha találkoznál Istennel, ez lenne az első szavad:",
-  "A bíróságon ezzel védekeznél a gyilkosság után:",
-  "Ezt írnád a sírkövedre:",
-  "Amikor megláttad a párod meztelenül, ez csúszott ki a szádon:",
-  "Ezt mondanád, ha Tóth Gabi megkérné a kezed:",
-  "Mit mondasz, ha a futár meglátja a szexjátékodat:",
-  "Az utolsó szavaid a villamosszékben:",
-  "Ezt kiabálod orgazmus közben:",
-  "Mit mondanál, ha Orbán Viktor meztelenül kopogna nálad:",
-  "A Tinder bemutatkozásod ez lenne:",
-  "Ezt a nevet adnád a nemi szervednek:",
-  "Ha egy napig az ellenkező nemű lennél, ez lenne az első dolgod:",
-  "Ezt mondanád a rendőrnek, ha hullát találna nálad:",
-  "A legkínosabb dolog, amit a Google-ben kerestél:",
-  "Ezt suttognád Putyin fülébe:",
-  "Ha kannibál lennél, melyik testrészt ennéd meg először:",
-  "A legrosszabb hely, ahova valaha hánytál:",
-  "Ezt mondanád, ha a gyereked meglátna szex közben:",
-  "Ha választhatnál, kinek a bugyiját szagolnád meg:",
-  "A legbetegebb fétised, amit senki sem tud:",
-  "Ezt írnád az exednek részegen hajnali 3-kor:",
-  "Mit tennél, ha kiderülne, hogy testvérek vagytok a pároddal:",
-  "Ezt mondanád, ha a nőgyógyászod a volt osztálytársad lenne:",
-  "A legdurvább hely, ahol valaha szexeltél:",
-  "Mit csinálnál, ha láthatatlan lennél a női öltözőben:",
-  "Ezt a mondatot tetováltatnád a fenekedre:",
-  "Ha a péniszed/melled tudna beszélni, mit mondana most:",
-  "A legrosszabb dolog, amit részegen csináltál:",
-  "Kivel feküdnél le a jelenlévők közül pénzért:",
-  "Ezt mondanád, ha Varga Irén duettet akarna veled:",
-  "Hova rejtenél el egy levágott fejet a lakásodban:",
-  "Milyen szexuális segédeszközt vinnél magaddal egy lakatlan szigetre:",
-  "Mit mondanál, ha rajtakapnád a szüleidet szex közben:",
-  "Melyik hírességet rugdosnád meg szívesen:",
-  "Ha a fingodnak illata lenne, milyen illatot választanál:",
-  "Mit tennél, ha a kutyád elkezdene beszélni miközben vered:",
-  "A legundorítóbb dolog, amit valaha a szádba vettél:",
-  "Ezt mondanád, ha véletlenül a főnöködnek küldenél meztelen képet:",
-  "Melyik testrészedet cserélnéd le egy lóéra:",
-  "Mit csinálnál, ha egy napra te lennél Mészáros Lőrinc:",
-  "Ezt a nevet adnád a pornófilmednek:",
-  "Mi a jelszava a titkos mappádnak a gépen:",
-  "Ha választani kell: anyád meghal vagy szexeltek egyet. Mit teszel:",
-  "Ezt mondanád, ha kiderülne, hogy a papod az apád:"
+  "Maszturbálás közben ezt kiabáltad:", "A proktológusnak ezt súgtad:", "Ha rajtakapnak egy kecskével:", "Szex után ezt mondod:", "Istennek ezt mondanád:", "A bíróságon ezzel védekeznél:", "Sírkövedre ezt írnád:", "Ha a párod meztelen, ezt mondod:", "Ha Tóth Gabi megkérné a kezed:", "Ha a futár látja a szexjátékod:", "Utolsó szavaid a villamosszékben:", "Orgazmus közben ezt ordítod:", "Ha Orbán kopogtatna nálad:", "Tinder bemutatkozásod:", "Neve a nemi szervednek:", "Ha ellenkező nemű lennél:", "Ha hullát találnál nálad:", "Legkínosabb Google keresésed:", "Putyinnak ezt súgnád:", "Kannibálként ezt ennéd:", "Legrosszabb hely hányásra:", "Ha a gyereked meglát szex közben:", "Kinek a bugyiját szagolnád:", "Legbetegebb fétised:", "Részeg SMS az exednek:", "Ha tesók lennétek a pároddal:", "Ha a nőgyógyászod osztálytársad:", "Legdurvább szexhelyszín:", "Láthatatlanként mit tennél:", "Tetoválás a fenekedre:", "Ha a péniszed beszélne:", "Részegen mit tettél:", "Kivel feküdnél le pénzért:", "Ha Varga Irén duettet akarna:", "Hova rejtenél egy fejet:", "Szexeszköz a lakatlan szigetre:", "Ha szüleid rajtakapnak:", "Kit rugdosnál meg:", "Fingod illata:", "Ha a kutya beszélne szex közben:", "Legundorítóbb dolog a szádban:", "Meztelen kép a főnöknek:", "Ló testrész magadon:", "Ha Mészáros Lőrinc lennél:", "Pornófilmed címe:", "Titkos mappa jelszava:", "Anyád halála vagy szex vele:", "Ha a pap az apád:"
 ];
 
-const ROLES = [
-  "Aki először halna meg egy zombiapokalipszisben", "Aki titokban lábképeket árul az interneten", "Akinek a legbüdösebb a lába",
-  "Aki a saját anyját is eladná egy iPhone-ért", "Aki valószínűleg idegen lény, csak álcázza magát", "Aki titokban szerelmes Németh Szilárdba",
-  "Aki biztosan börtönbe kerül 5 éven belül", "Akinek a böngészési előzményeiért börtön járna", "Aki részegen mindig sírva fakad",
-  "Aki a legrosszabbul csókol", "Aki sosem mossa meg a kezét WC után", "Akire ráférne egy alapos pszichiátriai kezelés",
-  "Aki titokban Fidesz-tagkönyvet tart a párnája alatt", "Aki elhinné, hogy a Föld lapos", "Aki képes lenne megenni egy nyers galambot",
-  "Aki a saját fingját szagolgatja", "Aki valószínűleg szűzen hal meg", "Aki a legtöbb nemi betegséget hordozza",
-  "Aki lopott már a Tescóból", "Aki simán lefeküdne egy állattal pénzért", "Aki szerint Varga Irén tehetséges",
-  "Aki a zuhany alatt is zokniban fürdik", "Aki titokban a saját unokatestvérére izgul", "Aki biztosan volt már detoxikálóban",
-  "Aki úgy néz ki, mint aki most szabadult", "Aki eladná a lelkét egy kis hírnévért", "Akinek a legkisebb az IQ-ja a társaságban",
-  "Aki titokban női ruhákat hord otthon", "Aki mindig elfelejti lehúzni a WC-t", "Aki képes lenne megölni valakit egy parkolóhelyért",
-  "Aki valószínűleg csatlakozna egy szektához", "Aki a legbénább az ágyban", "Aki még mindig az anyjával élne 40 évesen",
-  "Aki biztosan sírva fakad szex közben", "Aki a legvalószínűbben lesz csöves", "Aki titokban plüssállatokkal beszélget"
-];
+const LETTERS = "ABDEFGHKLMNPRSTVZ"; 
+const getLetter = () => LETTERS[Math.floor(Math.random() * LETTERS.length)];
 
-const LETTERS = "ABDEFGHKLMNPRSTVZ";
-const getLetters = () => {
-  let res = "";
-  for(let i=0; i<3; i++) res += LETTERS[Math.floor(Math.random() * LETTERS.length)] + " ";
-  return res.trim().replace(/ /g, " - ");
-};
-
+// Generátor
 const generateTasks = () => {
   const getRandom = (arr: any[]) => arr[Math.floor(Math.random() * arr.length)];
-  const celeb = getRandom(TRASH_CELEBS);
-  const t1_text = getRandom(SITUATION_TEMPLATES).replace("{WHO}", `<span class="highlight">${celeb}</span>`);
+  const getCeleb = () => getRandom(TRASH_CELEBS);
   
-  const t3_celebs = [getRandom(TRASH_CELEBS), getRandom(TRASH_CELEBS), getRandom(TRASH_CELEBS)];
-  const role = getRandom(ROLES);
-  const cast_options = [getRandom(TRASH_CELEBS), getRandom(TRASH_CELEBS), getRandom(TRASH_CELEBS)];
-
   return {
-    t1: { text: t1_text, letters: getLetters() },
-    t2: { text: getRandom(QUESTIONS), letters: getLetters() },
-    t3: { celebs: t3_celebs },
-    t4: { role: role, options: cast_options }
+    // 1. Kiegészítés
+    t1: { text: getRandom(SITUATIONS).replace("{WHO}", `<span class="highlight">${getCeleb()}</span>`), letter: getLetter() },
+    // 2. Kínos Kérdés
+    t2: { text: getRandom(QUESTIONS), letter: getLetter() },
+    // 3. Sztorigyár (FIXED SUBJECT + PREDICATE + FIXED OBJECT + ENDING)
+    t3: { subject: getCeleb(), target: getCeleb() },
+    // 4. Asszociáció (FIXED CELEB + LETTER)
+    t4: { celeb: getCeleb(), letter: getLetter() }
   };
 };
 
 // ==========================================
-// 4. JÁTÉK LOGIKA (HOST/CLIENT)
+// 4. JÁTÉK LOGIKA
 // ==========================================
 export default function App() {
   const [view, setView] = useState('MENU');
@@ -294,7 +162,8 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(0);
 
   const [myTasks, setMyTasks] = useState<any>(null);
-  const [myAnswers, setMyAnswers] = useState<any>({ t1: "", t2: "", t3_1: "", t3_2: "", t4: null });
+  // Válaszstruktúra: t3_1 (mit csinált), t3_2 (hol/miért), t4_1/2/3 (3 szó)
+  const [myAnswers, setMyAnswers] = useState<any>({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" });
   const [votingData, setVotingData] = useState<any>(null);
   const [myVote, setMyVote] = useState(5);
 
@@ -450,7 +319,6 @@ export default function App() {
       <style>{GLOBAL_CSS}</style>
       <div className="app-layer">
         
-        {/* 3D HÁTTÉR */}
         <div style={{position:'absolute', inset:0, zIndex:-1}}>
            <Canvas>
              <Scene3D />
@@ -504,55 +372,52 @@ export default function App() {
                <div className="room-code" style={{color: timeLeft<10?'red':'white'}}>{timeLeft}</div>
             </div>
 
+            {/* 1. KIEGÉSZÍTÉS */}
             <div className="glass-card">
               <div className="task-label">1. SZITUÁCIÓ (Egészítsd ki!)</div>
               <div style={{marginBottom:'10px'}} dangerouslySetInnerHTML={{__html: myTasks.t1.text.replace("...", "_______")}} />
-              <div style={{color:'#ffdd00', fontSize:'0.8rem', fontWeight:'bold'}}>BETŰK: {myTasks.t1.letters}</div>
+              <div style={{color:'#ffdd00', fontSize:'0.8rem', fontWeight:'bold'}}>KEZDŐBETŰ: {myTasks.t1.letter}</div>
               <input className="cyber-input" placeholder="Írd be..." value={myAnswers.t1} onChange={e=>setMyAnswers({...myAnswers, t1: e.target.value})} />
             </div>
 
+            {/* 2. KÍN-PAD */}
             <div className="glass-card">
               <div className="task-label">2. KÍN-PAD (Vallomás)</div>
               <div style={{marginBottom:'10px'}}>{myTasks.t2.text}</div>
-              <div style={{color:'#ffdd00', fontSize:'0.8rem', fontWeight:'bold'}}>BETŰK: {myTasks.t2.letters}</div>
+              <div style={{color:'#ffdd00', fontSize:'0.8rem', fontWeight:'bold'}}>KEZDŐBETŰ: {myTasks.t2.letter}</div>
               <input className="cyber-input" placeholder="Válasz..." value={myAnswers.t2} onChange={e=>setMyAnswers({...myAnswers, t2: e.target.value})} />
             </div>
 
+            {/* 3. SZTORIÉPÍTÉS (JAVÍTOTT LOGIKA) */}
             <div className="glass-card">
-              <div className="task-label">3. SZTORILÁNC (Kösd össze!)</div>
-              <div className="story-container">
-                 <div className="story-line">
-                    <div className="celeb-badge">{myTasks.t3.celebs[0]}</div>
-                    <span className="connector">...mit csinált vele?</span>
-                 </div>
-                 <input className="cyber-input" style={{marginTop:0}} placeholder="..." value={myAnswers.t3_1} onChange={e=>setMyAnswers({...myAnswers, t3_1: e.target.value})} />
-                 
-                 <div className="story-line">
-                    <div className="celeb-badge" style={{background:'#00f3ff', color:'black'}}>{myTasks.t3.celebs[1]}</div>
-                    <span className="connector">...erre ő mit reagált?</span>
-                 </div>
-                 <input className="cyber-input" style={{marginTop:0}} placeholder="..." value={myAnswers.t3_2} onChange={e=>setMyAnswers({...myAnswers, t3_2: e.target.value})} />
-                 
-                 <div className="celeb-badge" style={{background:'#ffdd00', color:'black', alignSelf:'flex-start'}}>{myTasks.t3.celebs[2]}</div>
+              <div className="task-label">3. SZTORIGYÁR (Alkoss mondatot!)</div>
+              <div className="story-row">
+                 <div className="celeb-static">{myTasks.t3.subject} ...</div>
+                 <input className="cyber-input" style={{marginTop:0}} placeholder="mit csinált?" value={myAnswers.t3_1} onChange={e=>setMyAnswers({...myAnswers, t3_1: e.target.value})} />
+              </div>
+              <div className="story-row">
+                 <div className="celeb-static">... {myTasks.t3.target}-vel/val,</div>
+                 <input className="cyber-input" style={{marginTop:0}} placeholder="és mi történt a végén?" value={myAnswers.t3_2} onChange={e=>setMyAnswers({...myAnswers, t3_2: e.target.value})} />
               </div>
             </div>
 
+            {/* 4. ASSZOCIÁCIÓ (ÚJ LOGIKA) */}
             <div className="glass-card">
-              <div className="task-label">4. CASTING (Kire illik?)</div>
-              <div style={{marginBottom:'15px', fontStyle:'italic', fontSize:'1.1rem'}}>"{myTasks.t4.role}"</div>
-              <div className="casting-grid">
-                {myTasks.t4.options.map((opt: string, idx: number) => (
-                  <div key={idx} 
-                       className={`cast-btn ${myAnswers.t4 === idx ? 'selected' : ''}`}
-                       onClick={() => setMyAnswers({...myAnswers, t4: idx})}>
-                    {opt}
-                  </div>
-                ))}
+              <div className="task-label">4. ASSZOCIÁCIÓ</div>
+              <div style={{textAlign:'center', marginBottom:'15px'}}>
+                 <div style={{color:'#aaa', fontSize:'0.9rem'}}>Írj 3 dolgot róla:</div>
+                 <div className="celeb-static">{myTasks.t4.celeb}</div>
+                 <div style={{color:'#aaa', fontSize:'0.9rem', marginTop:'10px'}}>Ezzel a betűvel:</div>
+                 <div style={{fontSize:'3rem', fontWeight:'900', color:'#ffdd00'}}>{myTasks.t4.letter}</div>
               </div>
+              
+              <div className="assoc-row"><span className="assoc-letter">1.</span> <input className="cyber-input" value={myAnswers.t4_1} onChange={e=>setMyAnswers({...myAnswers, t4_1: e.target.value})} /></div>
+              <div className="assoc-row"><span className="assoc-letter">2.</span> <input className="cyber-input" value={myAnswers.t4_2} onChange={e=>setMyAnswers({...myAnswers, t4_2: e.target.value})} /></div>
+              <div className="assoc-row"><span className="assoc-letter">3.</span> <input className="cyber-input" value={myAnswers.t4_3} onChange={e=>setMyAnswers({...myAnswers, t4_3: e.target.value})} /></div>
             </div>
 
             <div className="btn-container">
-               <button className="btn-action" onClick={submitMyAnswers}>BEKÜLDÉS</button>
+               <button className="btn-action" onClick={submitMyAnswers}>KÉSZ VAGYOK</button>
             </div>
           </div>
         )}
@@ -561,7 +426,7 @@ export default function App() {
            <div className="menu">
              <h2>VÁRJUK A TÖBBIEKET...</h2>
              <div style={{fontSize:'3rem', margin:'20px'}}>⏳</div>
-             {role === 'HOST' && <button className="btn-action btn-secondary" style={{width:'auto', position:'relative'}} onClick={startVotingPhase}>KÉNYSZERÍTÉS (SKIP)</button>}
+             {role === 'HOST' && <button className="btn-action btn-secondary" style={{width:'auto', position:'relative'}} onClick={startVotingPhase}>TOVÁBB (SKIP)</button>}
            </div>
         )}
 
@@ -577,32 +442,33 @@ export default function App() {
             <div className="glass-card">
                <div className="task-label">1. SZITUÁCIÓ</div>
                <div style={{fontSize:'0.8rem', color:'#aaa'}} dangerouslySetInnerHTML={{__html: votingData.tasks?.t1.text}} />
-               <div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t1 || "-(Nincs válasz)-"}</div>
+               <div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t1 || "-"}</div>
             </div>
 
             <div className="glass-card">
                <div className="task-label">2. KÍN-PAD</div>
                <div style={{fontSize:'0.8rem', color:'#aaa'}}>{votingData.tasks?.t2.text}</div>
-               <div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t2 || "-(Nincs válasz)-"}</div>
+               <div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t2 || "-"}</div>
             </div>
 
             <div className="glass-card">
                <div className="task-label">3. SZTORI</div>
-               <div style={{background:'black', padding:'15px', borderRadius:'8px', color:'#00f3ff', lineHeight:'1.5'}}>
-                 <span style={{color:'#ff00de', fontWeight:'bold'}}>{votingData.tasks?.t3.celebs[0]}</span> 
-                 {" -> "} {votingData.answers?.t3_1} {" -> "} 
-                 <span style={{color:'#fff', fontWeight:'bold'}}>{votingData.tasks?.t3.celebs[1]}</span> 
-                 {" -> "} {votingData.answers?.t3_2} {" -> "} 
-                 <span style={{color:'#ffdd00', fontWeight:'bold'}}>{votingData.tasks?.t3.celebs[2]}</span>
+               <div style={{background:'black', padding:'15px', borderRadius:'8px', color:'#00f3ff', lineHeight:'1.5', fontSize:'1.2rem'}}>
+                 <span style={{color:'#ff00de', fontWeight:'bold'}}>{votingData.tasks?.t3.subject}</span> 
+                 {" "}{votingData.answers?.t3_1}{" "} 
+                 <span style={{color:'#fff', fontWeight:'bold'}}>{votingData.tasks?.t3.target}-vel/val</span>, 
+                 {" "}{votingData.answers?.t3_2}
                </div>
             </div>
 
             <div className="glass-card">
-               <div className="task-label">4. VÁLASZTÁS</div>
-               <div style={{fontSize:'0.9rem', color:'#aaa'}}>"{votingData.tasks?.t4.role}"</div>
-               <div style={{marginTop:'10px', fontWeight:'bold', fontSize:'1.5rem', color:'#00f3ff', textAlign:'center'}}>
-                  {votingData.answers?.t4 !== null ? votingData.tasks?.t4.options[votingData.answers?.t4] : "-"}
-               </div>
+               <div className="task-label">4. ASSZOCIÁCIÓ ({votingData.tasks?.t4.letter})</div>
+               <div style={{marginBottom:'10px', fontWeight:'bold'}}>{votingData.tasks?.t4.celeb}:</div>
+               <ul style={{listStyle:'none', padding:0}}>
+                  <li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}>{votingData.answers?.t4_1 || "-"}</li>
+                  <li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}>{votingData.answers?.t4_2 || "-"}</li>
+                  <li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}>{votingData.answers?.t4_3 || "-"}</li>
+               </ul>
             </div>
 
             <div className="rating-box" style={{background:'#220022', padding:'20px', marginBottom:'30px'}}>

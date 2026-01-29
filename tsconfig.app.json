@@ -17,7 +17,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting - ITT A JAVÍTÁS: KIKAPCSOLTUK A SZIGORT */
+    /* Linting - KIKAPCSOLTUK A SZIGORT */
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,

@@ -17,10 +17,11 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Import javítások */
+    /* Import Fixes */
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
 
-    /* Lazább szabályok a sikeres buildhez */
+    /* Lazább szabályok a Buildhez */
     "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,

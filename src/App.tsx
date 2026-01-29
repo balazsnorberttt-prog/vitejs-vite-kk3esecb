@@ -5,7 +5,7 @@ import { Stars, Float, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 
 // ==========================================
-// 1. STÍLUSOK (DARK MODE & MOBIL)
+// 1. STÍLUSOK (DARK & DIRTY)
 // ==========================================
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@500;700;900&display=swap');
@@ -44,8 +44,6 @@ const GLOBAL_CSS = `
   
   .lobby-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 30px; margin-bottom: 30px; }
   .player-pill { padding: 10px 20px; background: #333; border-radius: 30px; border: 1px solid #555; font-weight: bold; }
-  
-  .wait-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 60vh; text-align: center; }
 `;
 
 // ==========================================
@@ -203,7 +201,7 @@ const generateTasks = () => {
 };
 
 // ==========================================
-// 4. JÁTÉK LOGIKA (V6.0 STABLE)
+// 4. JÁTÉK LOGIKA (KÖRBE-ÉRTÉKELÉS V7.0)
 // ==========================================
 export default function App() {
   const [view, setView] = useState('MENU');
@@ -213,13 +211,14 @@ export default function App() {
   const [joinCode, setJoinCode] = useState('');
   const [myName, setMyName] = useState('');
   const [players, setPlayers] = useState<any[]>([]);
-  const [votingIndex, setVotingIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [myTasks, setMyTasks] = useState<any>(null);
   
   const [myAnswers, setMyAnswers] = useState<any>({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" });
-  const [votingData, setVotingData] = useState<any>(null);
+  
+  // Szavazás (t1, t2, t3, t4 külön)
   const [votes, setVotes] = useState<any>({ t1: 5, t2: 5, t3: 5, t4: 5 });
+  const [hasVoted, setHasVoted] = useState(false);
 
   const peerRef = useRef<Peer>(null!);
   const connsRef = useRef<any[]>([]);
@@ -235,13 +234,28 @@ export default function App() {
     return () => peer.destroy();
   }, []);
 
-  // --- AUTOMATIKUS TOVÁBBLÉPÉS (WATCHER) ---
+  // --- HOST FIGYELŐ (SZAVAZÁS START & VÉGE) ---
   useEffect(() => {
     if (role === 'HOST' && players.length > 0) {
-        const allDone = players.every(p => p.answers !== null);
-        if (allDone && (view === 'PLAYING' || view === 'WAITING')) {
-            console.log("MINDENKI KÉSZ! INDUL A SZAVAZÁS...");
-            setTimeout(() => startVotingPhase(players), 1000); 
+        
+        // 1. HA JÁTÉK VAN: Ellenőrizzük, mindenki beküldte-e a választ
+        if (view === 'PLAYING' || view === 'WAITING') {
+            const allAnswersIn = players.every(p => p.answers !== null);
+            if (allAnswersIn) {
+                console.log("VÁLASZOK BEÉRKEZTEK -> SZAVAZÁS INDUL");
+                startSimultaneousVoting(players);
+            }
+        }
+
+        // 2. HA SZAVAZÁS VAN: Ellenőrizzük, mindenki szavazott-e
+        if (view === 'VOTING_WAIT') {
+            const allVotesIn = players.every(p => p.voted === true);
+            if (allVotesIn) {
+                console.log("SZAVAZATOK BEÉRKEZTEK -> RANGLISTA");
+                broadcast({ players }, 'SHOW_LEADERBOARD');
+                setPlayers(players); // Host update
+                setView('LEADERBOARD');
+            }
         }
     }
   }, [players, role, view]);
@@ -251,7 +265,7 @@ export default function App() {
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     const newPeer = new Peer(code);
     newPeer.on('open', (id) => {
-      setRoomId(id); setRole('HOST'); setPlayers([{ id: id, name: myName, score: 0, tasks: null, answers: null }]); setView('LOBBY');
+      setRoomId(id); setRole('HOST'); setPlayers([{ id: id, name: myName, score: 0, tasks: null, answers: null, voted: false }]); setView('LOBBY');
     });
     newPeer.on('connection', (conn) => {
       connsRef.current.push(conn); conn.on('data', (data) => handleDataHost(conn, data));
@@ -262,49 +276,59 @@ export default function App() {
   const handleDataHost = (conn: any, data: any) => {
     if (data.type === 'JOIN') {
       setPlayers(prev => {
-        const newList = [...prev, { id: conn.peer, name: data.name, score: 0, tasks: null, answers: null }];
+        const newList = [...prev, { id: conn.peer, name: data.name, score: 0, tasks: null, answers: null, voted: false }];
         broadcast(newList, 'UPDATE_PLAYERS'); return newList;
       });
     }
+    // Válaszok fogadása
     if (data.type === 'SUBMIT_ANSWERS') {
         setPlayers(prev => prev.map(p => p.id === conn.peer ? { ...p, answers: data.answers } : p));
     }
-    if (data.type === 'SUBMIT_VOTE') addScoreToCurrent(data.scores);
-  };
-
-  const addScoreToCurrent = (scores: any) => {
-    const total = parseInt(scores.t1) + parseInt(scores.t2) + parseInt(scores.t3) + parseInt(scores.t4);
-    setPlayers(prev => { 
-      const newList = [...prev]; 
-      if(newList[votingIndex]) newList[votingIndex].score += total; 
-      return newList; 
-    });
+    // Szavazatok fogadása
+    if (data.type === 'SUBMIT_VOTE') {
+        setPlayers(prev => {
+            const newList = [...prev];
+            // 1. Megkeressük, kire szavazott
+            const targetIndex = newList.findIndex(p => p.id === data.targetId);
+            if(targetIndex !== -1) {
+                const points = parseInt(data.scores.t1)+parseInt(data.scores.t2)+parseInt(data.scores.t3)+parseInt(data.scores.t4);
+                newList[targetIndex].score += points;
+            }
+            // 2. Bejelöljük, hogy a szavazó végzett
+            const voterIndex = newList.findIndex(p => p.id === conn.peer);
+            if(voterIndex !== -1) newList[voterIndex].voted = true;
+            
+            return newList;
+        });
+    }
   };
 
   const broadcast = (payload: any, type: string) => { connsRef.current.forEach(conn => conn.send({ type, payload })); };
 
-  // --- ÚJ KÖR INDÍTÁSA (STABILIZÁLT) ---
+  // --- JÁTÉK INDÍTÁSA (RESET) ---
   const startGameHost = () => {
-    setVotingIndex(0);
-    setVotingData(null);
-
+    // RESET MINDENKINEK
     const updatedPlayers = players.map(p => ({ 
         ...p, 
         tasks: generateTasks(), 
-        answers: null 
+        answers: null,
+        voted: false 
     }));
     
     setPlayers(updatedPlayers); 
     
+    // Klienseknek
     connsRef.current.forEach(conn => {
       const pData = updatedPlayers.find(p => p.id === conn.peer); 
-      if (pData) conn.send({ type: 'START_GAME', tasks: pData.tasks });
+      if (pData) conn.send({ type: 'START_GAME', tasks: pData.tasks, allPlayers: updatedPlayers });
     });
     
+    // Hostnak
     const hostData = updatedPlayers.find(p => p.id === roomId); 
     if(hostData) setMyTasks(hostData.tasks);
     
     setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); 
+    setHasVoted(false);
     setView('PLAYING'); 
     setTimeLeft(180);
   };
@@ -316,14 +340,15 @@ export default function App() {
     conn.on('data', (data: any) => {
       if (data.type === 'UPDATE_PLAYERS') setPlayers(data.payload);
       if (data.type === 'START_GAME') { 
+          setPlayers(data.allPlayers); // Fontos a szinkron miatt
           setMyTasks(data.tasks); 
           setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); 
-          setVotingData(null); 
+          setHasVoted(false);
           setView('PLAYING'); 
           setTimeLeft(180); 
       }
-      if (data.type === 'VOTE_PHASE') { 
-          setVotingData(data.payload); 
+      if (data.type === 'START_VOTE') { 
+          setPlayers(data.players); // Friss játékos lista (válaszokkal)
           setView('VOTING'); 
           setVotes({t1:5, t2:5, t3:5, t4:5}); 
       }
@@ -341,10 +366,10 @@ export default function App() {
   useEffect(() => {
     if (view !== 'PLAYING') return;
     const timer = setInterval(() => {
-      setTimeLeft(t => { if (t <= 1) { if (role === 'HOST') startVotingPhase(players); return 0; } return t - 1; });
+      setTimeLeft(t => { if (t <= 1) { return 0; } return t - 1; });
     }, 1000);
     return () => clearInterval(timer);
-  }, [view, role]);
+  }, [view]);
 
   const submitMyAnswers = () => {
     if (role === 'HOST') { 
@@ -356,53 +381,53 @@ export default function App() {
     }
   };
 
-  const startVotingPhase = (currentPlayersList: any[] = players) => { 
-      setVotingIndex(0); 
-      broadcastVoting(0, currentPlayersList); 
+  // --- KÖRBE ÉRTÉKELÉS LOGIKA ---
+  const startSimultaneousVoting = (currentPlayersList: any[]) => {
+      broadcast({ players: currentPlayersList }, 'START_VOTE');
+      setView('VOTING');
+      setVotes({t1:5, t2:5, t3:5, t4:5}); 
   };
 
-  const broadcastVoting = (index: number, currentPlayersList: any[] = players) => {
-    // HOST CRASH FIX: Ha vége a listának, Leaderboard, különben CRASH!
-    if (index >= currentPlayersList.length) { 
-        broadcast({ players: currentPlayersList }, 'SHOW_LEADERBOARD'); 
-        setPlayers(currentPlayersList); 
-        setView('LEADERBOARD'); 
-        return; 
-    }
-    
-    const target = currentPlayersList[index]; 
-    if (!target) return; // Biztonsági csekk
-
-    const packet = {
-        id: target.id,
-        name: target.name,
-        tasks: target.tasks,
-        answers: target.answers || { t1:"-", t2:"-", t3_1:"-", t3_2:"-", t4_1:"-", t4_2:"-", t4_3:"-" }
-    };
-
-    setVotingData(packet); 
-    setView('VOTING'); 
-    setVotes({t1:5, t2:5, t3:5, t4:5}); 
-    
-    broadcast(packet, 'VOTE_PHASE');
+  // Kiszámoljuk, kire kell szavaznom (NEXT PLAYER)
+  const getMyTarget = () => {
+      if(players.length < 2) return null;
+      // Sorba rendezzük ID alapján, hogy mindenkinél ugyanaz legyen a sorrend
+      const sortedPlayers = [...players].sort((a,b) => a.id.localeCompare(b.id));
+      const myIndex = sortedPlayers.findIndex(p => p.id === myId);
+      if(myIndex === -1) return null;
+      
+      // A következő embert kapom (ha én vagyok az utolsó, akkor az elsőt)
+      const targetIndex = (myIndex + 1) % sortedPlayers.length;
+      return sortedPlayers[targetIndex];
   };
 
   const submitVote = () => {
+    const target = getMyTarget();
+    if(!target) return;
+
     if (role === 'HOST') { 
-      if(votingData.id !== myId) addScoreToCurrent(votes); 
-      
-      const nextIdx = votingIndex + 1; 
-      setVotingIndex(nextIdx); 
-      setTimeout(() => broadcastVoting(nextIdx, players), 500); 
+      // Host szavazata
+      setPlayers(prev => {
+          const newList = [...prev];
+          const tIdx = newList.findIndex(p => p.id === target.id);
+          if(tIdx !== -1) {
+             const points = parseInt(votes.t1)+parseInt(votes.t2)+parseInt(votes.t3)+parseInt(votes.t4);
+             newList[tIdx].score += points;
+          }
+          const hostIdx = newList.findIndex(p => p.id === myId);
+          if(hostIdx !== -1) newList[hostIdx].voted = true;
+          return newList;
+      });
+      setView('VOTING_WAIT'); // Host is vár
     } 
     else { 
-      if(votingData.id !== myId) sendToHost('SUBMIT_VOTE', { scores: votes }); 
-      setView('WAITING_NEXT_VOTE'); 
+      sendToHost('SUBMIT_VOTE', { targetId: target.id, scores: votes }); 
+      setView('VOTING_WAIT'); 
     }
   };
 
-  // KÜLÖN NÉZET RENDERELÉS: HA ÉN VAGYOK SORON, MÁST MUTAT
-  const isMyTurn = votingData && votingData.id === myId;
+  // Rendereléshez
+  const targetPlayer = view === 'VOTING' ? getMyTarget() : null;
 
   return (
     <>
@@ -410,6 +435,7 @@ export default function App() {
       <div className="app-layer">
         <div style={{position:'absolute', inset:0, zIndex:-1}}><Canvas><Scene3D /></Canvas></div>
         
+        {/* MENU */}
         {view === 'MENU' && (
           <div className="menu">
             <h1 className="glitch-title">TRASH<br/>UNIVERSE</h1>
@@ -421,6 +447,7 @@ export default function App() {
           </div>
         )}
 
+        {/* LOBBY */}
         {view === 'LOBBY' && (
           <div className="menu">
             <h1 className="glitch-title" style={{fontSize:'3rem'}}>LOBBY</h1>
@@ -431,6 +458,7 @@ export default function App() {
           </div>
         )}
 
+        {/* GAME */}
         {view === 'PLAYING' && (
           !myTasks ? <div className="menu"><h1>TÖLTÉS...</h1></div> : (
           <div className="container">
@@ -444,33 +472,61 @@ export default function App() {
           )
         )}
 
-        {view === 'WAITING' && (<div className="menu"><h2>VÁRJUK A TÖBBIEKET...</h2><div style={{color:'#ff0055', marginBottom:'20px'}}>{players.filter(p=>p.answers).length} / {players.length} játékos kész</div><div style={{fontSize:'3rem', margin:'20px'}}>⏳</div>{role === 'HOST' && <button className="btn-action btn-secondary" style={{width:'auto', position:'relative'}} onClick={()=>startVotingPhase(players)}>KÉNYSZERÍTÉS (SKIP)</button>}</div>)}
+        {view === 'WAITING' && (<div className="menu"><h2>VÁRJUK A TÖBBIEKET...</h2><div style={{color:'#ff0055', marginBottom:'20px'}}>{players.filter(p=>p.answers).length} / {players.length} játékos kész</div><div style={{fontSize:'3rem', margin:'20px'}}>⏳</div></div>)}
         
-        {view === 'WAITING_NEXT_VOTE' && (<div className="menu"><h2>TÖLTÉS...</h2></div>)}
+        {view === 'VOTING_WAIT' && (<div className="menu"><h2>VÁRJUK, HOGY MINDENKI SZAVAZZON...</h2><div style={{fontSize:'3rem', margin:'20px'}}>🗳️</div></div>)}
 
-        {/* --- PONTOZÁS (BIZTONSÁGI VÉDELEM SAJÁT SZAVAZÁS ELLEN) --- */}
-        {view === 'VOTING' && votingData && (
-          isMyTurn ? (
-             <div className="menu">
-                <h1 style={{color:'#ff0055', fontSize:'2.5rem'}}>MOST TÉGED ÉRTÉKELNEK!</h1>
-                <div style={{color:'#aaa', marginBottom:'30px'}}>Dőlj hátra és izgulj...</div>
-                <div style={{fontSize:'5rem', animation:'pulse 1s infinite'}}>💀</div>
-             </div>
-          ) : (
+        {/* --- PONTOZÁS (PEER-TO-PEER) --- */}
+        {view === 'VOTING' && targetPlayer && (
           <div className="container">
-            <h2 style={{textAlign:'center', color:'#ff0055', marginBottom:'10px'}}>MOST ŐT ÉRTÉKELJÜK:</h2>
-            <h1 style={{textAlign:'center', fontSize:'3rem', margin:0, color:'white', textShadow:'0 0 10px white'}}>{votingData.name}</h1>
+            <h2 style={{textAlign:'center', color:'#ff0055', marginBottom:'5px'}}>TE MOST ŐT ÉRTÉKELED:</h2>
+            <h1 style={{textAlign:'center', fontSize:'3rem', margin:0, color:'white', textShadow:'0 0 10px white'}}>{targetPlayer.name}</h1>
             
-            <div className="glass-card"><div className="task-label">1. SZITUÁCIÓ</div><div style={{fontSize:'0.8rem', color:'#aaa'}} dangerouslySetInnerHTML={{__html: votingData.tasks?.t1.text}} /><div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t1 || "-"}</div><div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t1}</span></div><input type="range" min="1" max="10" value={votes.t1} onChange={e=>setVotes({...votes, t1: e.target.value})} /></div></div>
-            <div className="glass-card"><div className="task-label">2. KÍN-PAD</div><div style={{fontSize:'0.8rem', color:'#aaa'}}>{votingData.tasks?.t2.text}</div><div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t2 || "-"}</div><div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t2}</span></div><input type="range" min="1" max="10" value={votes.t2} onChange={e=>setVotes({...votes, t2: e.target.value})} /></div></div>
-            <div className="glass-card"><div className="task-label">3. SZTORI</div><div style={{background:'black', padding:'15px', borderRadius:'8px', color:'#00f3ff', lineHeight:'1.5', fontSize:'1.2rem'}}><span style={{color:'#ff00de', fontWeight:'bold'}}>{votingData.tasks?.t3.subject}</span> {" "}{votingData.answers?.t3_1}{" "} <span style={{color:'#fff', fontWeight:'bold'}}>{votingData.tasks?.t3.target}-vel/val</span>, {" "}{votingData.answers?.t3_2}</div><div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t3}</span></div><input type="range" min="1" max="10" value={votes.t3} onChange={e=>setVotes({...votes, t3: e.target.value})} /></div></div>
-            <div className="glass-card"><div className="task-label">4. ASSZOCIÁCIÓ</div><div style={{marginBottom:'10px', fontWeight:'bold'}}>{votingData.tasks?.t4.topic}:</div><ul style={{listStyle:'none', padding:0}}><li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{votingData.tasks?.t4.letters[0]}</span> - {votingData.answers?.t4_1 || "-"}</li><li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{votingData.tasks?.t4.letters[1]}</span> - {votingData.answers?.t4_2 || "-"}</li><li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{votingData.tasks?.t4.letters[2]}</span> - {votingData.answers?.t4_3 || "-"}</li></ul><div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t4}</span></div><input type="range" min="1" max="10" value={votes.t4} onChange={e=>setVotes({...votes, t4: e.target.value})} /></div></div>
+            {/* T1 */}
+            <div className="glass-card">
+               <div className="task-label">1. SZITUÁCIÓ</div>
+               <div style={{fontSize:'0.8rem', color:'#aaa'}} dangerouslySetInnerHTML={{__html: targetPlayer.tasks?.t1.text}} />
+               <div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{targetPlayer.answers?.t1 || "-"}</div>
+               <div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t1}</span></div><input type="range" min="1" max="10" value={votes.t1} onChange={e=>setVotes({...votes, t1: e.target.value})} /></div>
+            </div>
+
+            {/* T2 */}
+            <div className="glass-card">
+               <div className="task-label">2. KÍN-PAD</div>
+               <div style={{fontSize:'0.8rem', color:'#aaa'}}>{targetPlayer.tasks?.t2.text}</div>
+               <div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{targetPlayer.answers?.t2 || "-"}</div>
+               <div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t2}</span></div><input type="range" min="1" max="10" value={votes.t2} onChange={e=>setVotes({...votes, t2: e.target.value})} /></div>
+            </div>
+
+            {/* T3 */}
+            <div className="glass-card">
+               <div className="task-label">3. SZTORI</div>
+               <div style={{background:'black', padding:'15px', borderRadius:'8px', color:'#00f3ff', lineHeight:'1.5', fontSize:'1.2rem'}}>
+                 <span style={{color:'#ff00de', fontWeight:'bold'}}>{targetPlayer.tasks?.t3.subject}</span> {" "}{targetPlayer.answers?.t3_1}{" "} <span style={{color:'#fff', fontWeight:'bold'}}>{targetPlayer.tasks?.t3.target}-vel/val</span>, {" "}{targetPlayer.answers?.t3_2}
+               </div>
+               <div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t3}</span></div><input type="range" min="1" max="10" value={votes.t3} onChange={e=>setVotes({...votes, t3: e.target.value})} /></div>
+            </div>
+
+            {/* T4 */}
+            <div className="glass-card">
+               <div className="task-label">4. ASSZOCIÁCIÓ</div>
+               <div style={{marginBottom:'10px', fontWeight:'bold'}}>{targetPlayer.tasks?.t4.topic}:</div>
+               <ul style={{listStyle:'none', padding:0}}>
+                  <li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{targetPlayer.tasks?.t4.letters[0]}</span> - {targetPlayer.answers?.t4_1 || "-"}</li>
+                  <li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{targetPlayer.tasks?.t4.letters[1]}</span> - {targetPlayer.answers?.t4_2 || "-"}</li>
+                  <li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{targetPlayer.tasks?.t4.letters[2]}</span> - {targetPlayer.answers?.t4_3 || "-"}</li>
+               </ul>
+               <div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t4}</span></div><input type="range" min="1" max="10" value={votes.t4} onChange={e=>setVotes({...votes, t4: e.target.value})} /></div>
+            </div>
 
             <div className="btn-container"><button className="btn-action" onClick={submitVote}>SZAVAZATOK BEKÜLDÉSE</button></div>
           </div>
-          )
         )}
 
+        {/* BIZTONSÁGI VÁRAKOZÓ HA NINCS TARGET (pár percig lehet ilyen) */}
+        {view === 'VOTING' && !targetPlayer && <div className="menu">TÖLTÉS...</div>}
+
+        {/* RESULTS */}
         {view === 'LEADERBOARD' && (
            <div className="container"><h1 className="glitch-title" style={{textAlign:'center'}}>EREDMÉNY</h1><div className="lobby-list" style={{flexDirection:'column'}}>{players.sort((a,b) => b.score - a.score).map((p, i) => (<div key={p.id} className="glass-card" style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}><div style={{fontSize:'1.5rem', fontWeight:'bold'}}>#{i+1} {p.name}</div><div style={{fontSize:'2rem', color:'#00f3ff'}}>{p.score}</div></div>))}</div>{role === 'HOST' && <div className="btn-container"><button className="btn-action" onClick={startGameHost}>ÚJ KÖR</button></div>}</div>
         )}

@@ -5,7 +5,7 @@ import { Stars, Float, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 
 // ==========================================
-// 1. STÍLUSOK (TÖKÉLETESÍTVE)
+// 1. STÍLUSOK (MOBIL-BARÁT)
 // ==========================================
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@500;700;900&display=swap');
@@ -43,16 +43,16 @@ const GLOBAL_CSS = `
   .task-label { color: #00f3ff; font-weight: 900; letter-spacing: 2px; margin-bottom: 12px; text-transform: uppercase; font-size: 0.9rem; }
   .highlight { color: #ff00de; font-weight: bold; text-decoration: underline; }
 
-  /* SZTORI & ASSZOCIÁCIÓ */
-  .story-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 15px; }
-  .celeb-static { color: #ff00de; font-weight: 900; font-size: 1.2rem; text-transform: uppercase; text-shadow: 0 0 10px #ff00de; }
-  .assoc-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
-  .assoc-letter { font-size: 2rem; font-weight: 900; color: #ff00de; min-width: 40px; }
-
   /* UI ELEMEK */
   .top-bar { padding: 15px 20px; background: rgba(0,0,0,0.85); border-bottom: 2px solid #ff00de; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
   .menu { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; }
   .glitch-title { font-size: 3.5rem; color: #fff; font-family: 'Black Ops One'; line-height: 0.9; margin-bottom: 30px; text-shadow: 3px 3px 0 #ff00de, -3px -3px 0 #00f3ff; }
+  
+  .story-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 15px; }
+  .celeb-static { color: #ff00de; font-weight: 900; font-size: 1.2rem; text-transform: uppercase; text-shadow: 0 0 10px #ff00de; }
+  .assoc-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .assoc-letter { font-size: 2rem; font-weight: 900; color: #ff00de; min-width: 40px; }
+  
   .rating-box { margin-top: 15px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; border: 1px dashed #555; }
   input[type=range] { width: 100%; cursor: pointer; accent-color: #00f3ff; }
   .lobby-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 30px; margin-bottom: 30px; }
@@ -68,10 +68,12 @@ function FloatingDebris() {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particles = useMemo(() => {
     const temp = [];
-    for (let i = 0; i < count; i++) temp.push({
+    for (let i = 0; i < count; i++) {
+      temp.push({
         x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60, z: (Math.random() - 0.5) * 60,
         rotSpeed: Math.random() * 0.02, scale: 0.5 + Math.random()
-    });
+      });
+    }
     return temp;
   }, []);
 
@@ -110,20 +112,71 @@ function Scene3D() {
 }
 
 // ==========================================
-// 3. MASSZÍV ADATBÁZIS (200+ ELEM)
+// 3. MASSZÍV ADATBÁZIS (FINAL)
 // ==========================================
 const TRASH_CELEBS = [
-  "Tóth Gabi", "Alekosz", "Varga Irén", "Berki szelleme", "Kis Grófo", "Pumped Gabo", "MC Isti", "Bartos Cs.", "Gáspár Laci", "Fekete Pákó", "Győzike", "Bea asszony", "Zimány Linda", "Hajdú Péter", "Mandula Ádám", "PSG Ogli", "Whisper Ton", "Baukó Éva", "Molnár Anikó", "Aurelio", "VV Cristofel", "Szabyest", "Lakatos Brendon", "Polgár Jenő", "Szalai Ádám", "Varga Viktor", "Kulcsár Edina", "G.w.M", "Tóth Andi", "Nagy Feró", "Korda Gyuri", "Balázs Klári", "Majka", "Curtis", "Azahriah", "Desh", "Dopeman", "Cicciolina", "Schobert Norbi", "Rubint Réka", "Orbán Viktor", "Gyurcsány", "Szájer József", "Németh Szilárd", "Bayer Zsolt", "Soros György", "Mészáros Lőrinc", "Karácsony Gergely", "Márki-Zay Péter", "Novák Katalin", "Varga Judit", "Deutsch Tamás", "Jakab Péter", "Egy bedrogozott BKV ellenőr", "A GLS futár", "Egy korrupt NAV ellenőr", "A nőgyógyászod", "A szomszéd néni", "Egy kanos tinédzser", "Egy OnlyFans modell", "A sarki gyrosos", "Egy részeg pap", "A postás", "A matektanárod", "A főnököd", "Egy taxis hiéna", "Zacher Gábor", "Csernus doki", "Dancsó Péter", "VV Aurélió", "VV Merci", "Lady Szomjas", "Forstner Csenge", "Köllő Babett", "Tóth Gabi tapétája", "Egy zacskó mákos guba", "A Sziget Fesztivál toi-toi wc-je"
+  "Tóth Gabi", "Nagy Alekosz", "Varga Irén", "Berki Krisztián szelleme", "Kis Grófo", 
+  "Pumped Gabo", "MC Isti", "Bartos Cs. István", "Gáspár Laci", "Fekete Pákó", 
+  "Győzike", "Gáspár Bea", "Zimány Linda", "Hajdú Péter", "Mandula Ádám", "PSG Ogli", 
+  "Whisper Ton", "Baukó Éva", "Molnár Anikó", "Aurelio", "VV Cristofel", "Szabyest",
+  "Lakatos Brendon", "Polgár Jenő hivatala", "Szalai Ádám (a Názáreti)", "Varga Viktor",
+  "Kulcsár Edina", "G.w.M", "Tóth Andi", "Nagy Feró", "Korda Gyuri bácsi", "Balázs Klári",
+  "Csobot Adél", "Istenes Bence", "Majka", "Curtis", "Azahriah", "Desh", "Dopeman",
+  "Cicciolina", "Gerendai Károly", "Schobert Norbi", "Rubint Réka", "A Schobert gyerekek",
+  "Köllő Babett", "Tilla", "Sebestyén Balázs", "Vadon Jani", "Gáspár Evelin",
+  "VV Merci", "Lady Szomjas", "Forstner Csenge", "Viszkok Fruzsi", "Osváth Zsolti",
+  "Orbán Viktor", "Gyurcsány Ferenc", "Szájer József", "Németh Szilárd", "Bayer Zsolt", 
+  "Soros György", "Mészáros Lőrinc", "Karácsony Gergely", "Márki-Zay Péter", "Novák Katalin", 
+  "Varga Judit", "Deutsch Tamás", "Jakab Péter", "Rákay Philip", "Bohár Dániel", "Trombitás Kristóf",
+  "Kövér László", "Rogán Antal", "Szijjártó Péter", "Dobrev Klára", "Toroczkai László",
+  "Egy Fidesz szavazó", "Egy DK nyugdíjas", "Putyin", "Zelensky", "Trump",
+  "Egy bedrogozott BKV ellenőr", "A GLS futár", "Egy korrupt NAV ellenőr", 
+  "A nőgyógyászod", "A szomszéd néni", "Egy kanos tinédzser", "Egy OnlyFans modell", 
+  "A sarki gyrosos", "Egy részeg pap", "A postás", "A matektanárod", "A főnököd", 
+  "Egy taxis hiéna", "Zacher Gábor", "Csernus doki", "Dancsó Péter", "Egy zacskó mákos guba"
 ];
 
-// Feladat 1: Szituáció (csak a nevet kell beilleszteni)
+// ITT VOLT A HIBA: SITUATIONS LEGYEN A NÉV!
 const SITUATIONS = [
-  "A Blahán {WHO} éppen ...-t csinál a szökőkútban.", "{WHO} a 4-es 6-oson üvöltve próbál eladni egy ...-t.", "A Parlamentben {WHO} ...-al keni be magát.", "A Hősök terén {WHO} egy ...-t áldozott fel.", "Az aluljáróban {WHO} ...-t cserélt cigire.", "Az első randin {WHO} elővett egy ...-t.", "A ravatalozóban {WHO} elejtett egy ...-t.", "{WHO} a toi-toi vécében ...-t próbál lehúzni.", "A templomban {WHO} az oltárra tett egy ...-t.", "A szülőin {WHO} ...-t rajzolt a táblára.", "{WHO} részegen ...-t tetováltatott.", "A szülőszobán {WHO} ...-t adott a babának.", "A temetésen {WHO} ...-al dobálózott.", "A szaunában {WHO} ...-al csapkodott.", "Az éjféli misén {WHO} ...-t ordított.", "{WHO} az OnlyFans-en ...-t dugott a fülébe.", "A Híradóban {WHO} ...-t mutatott.", "A Villában {WHO} ...-t csempészett be.", "{WHO} a Tinderen ...-al pózolt.", "A Fókuszban {WHO} bemutatta a ... gyűjteményét.", "Hangfelvételen {WHO} ...-t kért a dealertől.", "A vonaton {WHO} ...-t dobált.", "A Lidlben {WHO} ...-al fizetett.", "{WHO} a kondiban ...-t emelgetett.", "A NAV-nál {WHO} ...-t húzott elő.", "Az állatkertben {WHO} ...-t etetett.", "A BKV-n {WHO} ...-t mutatott bérlet helyett.", "A bíróságon {WHO} ...-t vallott.", "{WHO} swinger klubban ...-t használt.", "Az orvosnál {WHO} ...-t vetetett ki.", "{WHO} a VIP-ben felszívott egy ...-t.", "Házibulin {WHO} ...-t kevert az italba.", "{WHO} mikrofonnak hitte a ...-t.", "A Soundon {WHO} ...-t csinált a gumimatraccal.", "{WHO} a Pride-on ...-nak öltözött.", "A WC-ben {WHO} ...-t írt a falra.", "{WHO} a bejglibe ...-t sütött.", "A fogdában {WHO} ...-t rejtett el."
+  "A Blahán {WHO} éppen ...-t csinál a szökőkútban.", "{WHO} a 4-es 6-oson üvöltve próbál eladni egy ...-t.", 
+  "A Parlamentben {WHO} ...-al keni be magát.", "A Hősök terén {WHO} egy ...-t áldozott fel.", 
+  "Az aluljáróban {WHO} ...-t cserélt cigire.", "A Margitszigeten {WHO} ...-t dobált a futók után.", 
+  "A Deák téren {WHO} ...-t árult a turistáknak.", "Az első randin {WHO} elővett egy ...-t.", 
+  "A ravatalozóban {WHO} elejtett egy ...-t.", "{WHO} a toi-toi vécében ...-t próbál lehúzni.", 
+  "A templomban {WHO} az oltárra tett egy ...-t.", "A szülőin {WHO} ...-t rajzolt a táblára.", 
+  "{WHO} részegen ...-t tetováltatott.", "A szülőszobán {WHO} ...-t adott a babának.", 
+  "A temetésen {WHO} ...-al dobálózott.", "A szaunában {WHO} ...-al csapkodott.", 
+  "Az éjféli misén {WHO} ...-t ordított.", "{WHO} az OnlyFans-en ...-t dugott a fülébe.", 
+  "A Híradóban {WHO} ...-t mutatott.", "A Villában {WHO} ...-t csempészett be.", 
+  "{WHO} a Tinderen ...-al pózolt.", "A Fókuszban {WHO} bemutatta a ... gyűjteményét.", 
+  "Hangfelvételen {WHO} ...-t kért a dealertől.", "{WHO} élőben közvetítette, ahogy ...-t eszik.", 
+  "A vonaton {WHO} ...-t dobált.", "A Lidlben {WHO} ...-al fizetett.", "{WHO} a kondiban ...-t emelgetett.", 
+  "A NAV-nál {WHO} ...-t húzott elő.", "Az állatkertben {WHO} ...-t etetett.", "A Mekiben {WHO} ...-t kért.", 
+  "A BKV-n {WHO} ...-t mutatott bérlet helyett.", "A bíróságon {WHO} ...-t vallott.", 
+  "{WHO} swinger klubban ...-t használt.", "Az orvosnál {WHO} ...-t vetetett ki.", 
+  "{WHO} a VIP-ben felszívott egy ...-t.", "Házibulin {WHO} ...-t kevert az italba.", 
+  "{WHO} mikrofonnak hitte a ...-t.", "A Soundon {WHO} ...-t csinált a gumimatraccal.", 
+  "{WHO} a Pride-on ...-nak öltözött.", "A WC-ben {WHO} ...-t írt a falra.", "{WHO} a bejglibe ...-t sütött.", 
+  "A fogdában {WHO} ...-t rejtett el.", "Az Operában {WHO} ...-t kiabált a tenor helyett.",
+  "{WHO} a Balatonban ...-t keresett a víz alatt.", "A választáson {WHO} ...-t rajzolt a szavazólapra."
 ];
 
-// Feladat 2: Kérdések
 const QUESTIONS = [
-  "Maszturbálás közben ezt kiabáltad:", "A proktológusnak ezt súgtad:", "Ha rajtakapnak egy kecskével:", "Szex után ezt mondod:", "Istennek ezt mondanád:", "A bíróságon ezzel védekeznél:", "Sírkövedre ezt írnád:", "Ha a párod meztelen, ezt mondod:", "Ha Tóth Gabi megkérné a kezed:", "Ha a futár látja a szexjátékod:", "Utolsó szavaid a villamosszékben:", "Orgazmus közben ezt ordítod:", "Ha Orbán kopogtatna nálad:", "Tinder bemutatkozásod:", "Neve a nemi szervednek:", "Ha ellenkező nemű lennél:", "Ha hullát találnál nálad:", "Legkínosabb Google keresésed:", "Putyinnak ezt súgnád:", "Kannibálként ezt ennéd:", "Legrosszabb hely hányásra:", "Ha a gyereked meglát szex közben:", "Kinek a bugyiját szagolnád:", "Legbetegebb fétised:", "Részeg SMS az exednek:", "Ha tesók lennétek a pároddal:", "Ha a nőgyógyászod osztálytársad:", "Legdurvább szexhelyszín:", "Láthatatlanként mit tennél:", "Tetoválás a fenekedre:", "Ha a péniszed beszélne:", "Részegen mit tettél:", "Kivel feküdnél le pénzért:", "Ha Varga Irén duettet akarna:", "Hova rejtenél egy fejet:", "Szexeszköz a lakatlan szigetre:", "Ha szüleid rajtakapnak:", "Kit rugdosnál meg:", "Fingod illata:", "Ha a kutya beszélne szex közben:", "Legundorítóbb dolog a szádban:", "Meztelen kép a főnöknek:", "Ló testrész magadon:", "Ha Mészáros Lőrinc lennél:", "Pornófilmed címe:", "Titkos mappa jelszava:", "Anyád halála vagy szex vele:", "Ha a pap az apád:"
+  "Maszturbálás közben ezt kiabáltad:", "A proktológusnak ezt súgtad:", "Ha rajtakapnak egy kecskével:", 
+  "Szex után ezt mondod:", "Istennek ezt mondanád:", "A bíróságon ezzel védekeznél:", "Sírkövedre ezt írnád:", 
+  "Ha a párod meztelen, ezt mondod:", "Ha Tóth Gabi megkérné a kezed:", "Ha a futár látja a szexjátékod:", 
+  "Utolsó szavaid a villamosszékben:", "Orgazmus közben ezt ordítod:", "Ha Orbán kopogtatna nálad:", 
+  "Tinder bemutatkozásod:", "Neve a nemi szervednek:", "Ha ellenkező nemű lennél:", "Ha hullát találnál nálad:", 
+  "Legkínosabb Google keresésed:", "Putyinnak ezt súgnád:", "Kannibálként ezt ennéd:", "Legrosszabb hely hányásra:", 
+  "Ha a gyereked meglát szex közben:", "Kinek a bugyiját szagolnád:", "Legbetegebb fétised:", "Részeg SMS az exednek:", 
+  "Ha tesók lennétek a pároddal:", "Ha a nőgyógyászod osztálytársad:", "Legdurvább szexhelyszín:", 
+  "Láthatatlanként mit tennél:", "Tetoválás a fenekedre:", "Ha a péniszed beszélne:", "Részegen mit tettél:", 
+  "Kivel feküdnél le pénzért:", "Ha Varga Irén duettet akarna:", "Hova rejtenél egy fejet:", 
+  "Szexeszköz a lakatlan szigetre:", "Ha szüleid rajtakapnak:", "Kit rugdosnál meg:", "Fingod illata:", 
+  "Ha a kutya beszélne szex közben:", "Legundorítóbb dolog a szádban:", "Meztelen kép a főnöknek:", 
+  "Ló testrész magadon:", "Ha Mészáros Lőrinc lennél:", "Pornófilmed címe:", "Titkos mappa jelszava:", 
+  "Anyád halála vagy szex vele:", "Ha a pap az apád:", "Milyen nevet adnál a nemi betegségednek:",
+  "Ezt mondanád, ha Gyurcsány masszírozná a lábad:"
 ];
 
 const LETTERS = "ABDEFGHKLMNPRSTVZ"; 
@@ -139,9 +192,9 @@ const generateTasks = () => {
     t1: { text: getRandom(SITUATIONS).replace("{WHO}", `<span class="highlight">${getCeleb()}</span>`), letter: getLetter() },
     // 2. Kínos Kérdés
     t2: { text: getRandom(QUESTIONS), letter: getLetter() },
-    // 3. Sztorigyár (FIXED SUBJECT + PREDICATE + FIXED OBJECT + ENDING)
+    // 3. Sztorigyár (ALANY + ÁLLÍTMÁNY + TÁRGY + BEFEJEZÉS)
     t3: { subject: getCeleb(), target: getCeleb() },
-    // 4. Asszociáció (FIXED CELEB + LETTER)
+    // 4. Asszociáció (SZEMÉLY + BETŰ -> 3 SZÓ)
     t4: { celeb: getCeleb(), letter: getLetter() }
   };
 };
@@ -162,7 +215,6 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(0);
 
   const [myTasks, setMyTasks] = useState<any>(null);
-  // Válaszstruktúra: t3_1 (mit csinált), t3_2 (hol/miért), t4_1/2/3 (3 szó)
   const [myAnswers, setMyAnswers] = useState<any>({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" });
   const [votingData, setVotingData] = useState<any>(null);
   const [myVote, setMyVote] = useState(5);
@@ -319,6 +371,7 @@ export default function App() {
       <style>{GLOBAL_CSS}</style>
       <div className="app-layer">
         
+        {/* 3D HÁTTÉR */}
         <div style={{position:'absolute', inset:0, zIndex:-1}}>
            <Canvas>
              <Scene3D />
@@ -372,7 +425,7 @@ export default function App() {
                <div className="room-code" style={{color: timeLeft<10?'red':'white'}}>{timeLeft}</div>
             </div>
 
-            {/* 1. KIEGÉSZÍTÉS */}
+            {/* 1. FELADAT */}
             <div className="glass-card">
               <div className="task-label">1. SZITUÁCIÓ (Egészítsd ki!)</div>
               <div style={{marginBottom:'10px'}} dangerouslySetInnerHTML={{__html: myTasks.t1.text.replace("...", "_______")}} />
@@ -380,7 +433,7 @@ export default function App() {
               <input className="cyber-input" placeholder="Írd be..." value={myAnswers.t1} onChange={e=>setMyAnswers({...myAnswers, t1: e.target.value})} />
             </div>
 
-            {/* 2. KÍN-PAD */}
+            {/* 2. FELADAT */}
             <div className="glass-card">
               <div className="task-label">2. KÍN-PAD (Vallomás)</div>
               <div style={{marginBottom:'10px'}}>{myTasks.t2.text}</div>
@@ -388,7 +441,7 @@ export default function App() {
               <input className="cyber-input" placeholder="Válasz..." value={myAnswers.t2} onChange={e=>setMyAnswers({...myAnswers, t2: e.target.value})} />
             </div>
 
-            {/* 3. SZTORIÉPÍTÉS (JAVÍTOTT LOGIKA) */}
+            {/* 3. FELADAT: SZTORIGYÁR (Mondatépítés) */}
             <div className="glass-card">
               <div className="task-label">3. SZTORIGYÁR (Alkoss mondatot!)</div>
               <div className="story-row">
@@ -401,7 +454,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* 4. ASSZOCIÁCIÓ (ÚJ LOGIKA) */}
+            {/* 4. FELADAT: ASSZOCIÁCIÓ */}
             <div className="glass-card">
               <div className="task-label">4. ASSZOCIÁCIÓ</div>
               <div style={{textAlign:'center', marginBottom:'15px'}}>
@@ -434,6 +487,7 @@ export default function App() {
            <div className="menu"><h2>KÖVETKEZŐ EMBER...</h2></div>
         )}
 
+        {/* --- PONTOZÁS --- */}
         {view === 'VOTING' && votingData && (
           <div className="container">
             <h2 style={{textAlign:'center', color:'#ff00de', marginBottom:'10px'}}>MOST PONTOZZUK:</h2>
@@ -483,6 +537,7 @@ export default function App() {
           </div>
         )}
 
+        {/* --- RANGLISTA --- */}
         {view === 'LEADERBOARD' && (
            <div className="container">
              <h1 className="glitch-title" style={{textAlign:'center'}}>EREDMÉNY</h1>

@@ -21,7 +21,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
 
-    /* Lazább szabályok a Buildhez */
+    /* KIKAPCSOLJUK A SZIGORÚ ELLENŐRZÉST */
     "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,

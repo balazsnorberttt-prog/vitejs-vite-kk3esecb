@@ -5,12 +5,12 @@ import { Stars, Float, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 
 // ==========================================
-// 1. JAVÍTOTT STÍLUSOK (MOBIL-BARÁT)
+// 1. STÍLUSOK (MOBIL- ÉS NETLIFY-BARÁT)
 // ==========================================
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@500;700;900&display=swap');
   
-  body { margin: 0; background: #000; font-family: 'Rajdhani', sans-serif; color: white; overflow-x: hidden; }
+  body { margin: 0; background: #000; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: white; }
   .app-layer { position: absolute; inset: 0; display: flex; flex-direction: column; z-index: 10; overflow-y: auto; overflow-x: hidden; }
   
   /* INPUTOK */
@@ -22,10 +22,10 @@ const GLOBAL_CSS = `
   }
   .cyber-input:focus { border-color: #ffdd00; box-shadow: 0 0 20px rgba(255, 221, 0, 0.4); background: rgba(0,0,0,0.9); }
 
-  /* GOMBOK (JAVÍTVA: NEM FIXED, HANEM STICKY/RELATIVE) */
+  /* GOMBOK */
   .btn-container {
-    width: 100%; display: flex; justify-content: center; padding: 20px; box-sizing: border-box;
-    margin-top: auto; /* Alulra tolja */
+    width: 100%; display: flex; justify-content: center; padding: 20px; 
+    box-sizing: border-box; margin-top: 20px;
   }
 
   .btn-action {
@@ -76,8 +76,9 @@ const GLOBAL_CSS = `
 // 2. 3D HÁTTÉR (WARP)
 // ==========================================
 function FloatingDebris() {
-  const mesh = useRef<any>();
+  const mesh = useRef<any>(null); // JAVÍTVA: Itt volt a hiba, a (null) kötelező!
   const count = 40;
+  
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particles = useMemo(() => {
     const temp = [];
@@ -461,10 +462,14 @@ export default function App() {
           <div className="menu">
             <h1 className="glitch-title">TRASH<br/>UNIVERSE</h1>
             <input className="cyber-input" style={{maxWidth:'350px'}} placeholder="NEVED" value={myName} onChange={e=>setMyName(e.target.value)} />
-            <button className="btn-action" style={{position:'relative', maxWidth:'350px', marginTop:'40px'}} onClick={createRoom}>ÚJ SZOBA</button>
+            <div className="btn-container">
+               <button className="btn-action" onClick={createRoom}>ÚJ SZOBA</button>
+            </div>
             <p style={{margin:'20px', color:'#aaa'}}>VAGY</p>
             <input className="cyber-input" style={{maxWidth:'350px'}} placeholder="SZOBA KÓD" value={joinCode} onChange={e=>setJoinCode(e.target.value)} />
-            <button className="btn-action btn-secondary" style={{position:'relative', maxWidth:'350px', padding:'15px', marginTop:'20px'}} onClick={joinRoom}>CSATLAKOZÁS</button>
+            <div className="btn-container">
+               <button className="btn-action btn-secondary" onClick={joinRoom}>CSATLAKOZÁS</button>
+            </div>
           </div>
         )}
 
@@ -482,7 +487,9 @@ export default function App() {
             </div>
 
             {role === 'HOST' ? (
-              <button className="btn-action" onClick={startGameHost}>JÁTÉK INDÍTÁSA</button>
+              <div className="btn-container">
+                 <button className="btn-action" onClick={startGameHost}>JÁTÉK INDÍTÁSA</button>
+              </div>
             ) : (
               <p style={{marginTop:'40px', color:'#00f3ff', animation:'pulse 1s infinite'}}>A Host hamarosan indít...</p>
             )}

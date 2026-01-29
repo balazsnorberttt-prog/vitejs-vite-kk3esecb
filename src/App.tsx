@@ -68,7 +68,7 @@ const GLOBAL_CSS = `
 // 2. 3D HÁTTÉR (WARP SPEED)
 // ==========================================
 function FloatingDebris() {
-  const mesh = useRef<any>(null);
+  const mesh = useRef<any>(null); // <--- ITT LEGYEN A (null)
   const count = 40;
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particles = useMemo(() => {

@@ -21,15 +21,14 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
 
-    /* KIKAPCSOLJUK A TÍPUSELLENŐRZÉST */
+    /* KIKAPCSOLJUK AZ AUTOMATA TÍPUSKERESÉST */
+    "types": [],
+    
+    /* LAZA SZABÁLYOK */
     "strict": false,
-    "noImplicitAny": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": false,
-    
-    /* EZ A TITOK: Nem töltünk be automatikusan semmit */
-    "types": ["vite/client"]
+    "noFallthroughCasesInSwitch": false
   },
   "include": ["src"]
 }

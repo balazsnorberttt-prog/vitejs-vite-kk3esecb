@@ -5,24 +5,24 @@ import { Stars, Float, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 
 // ==========================================
-// 1. STÍLUSOK (DARK MODE & MOBIL)
+// 1. STÍLUSOK (DARK & DIRTY)
 // ==========================================
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@500;700;900&display=swap');
   
-  body { margin: 0; background: #050505; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: white; }
+  body { margin: 0; background: #000; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: white; }
   .app-layer { position: absolute; inset: 0; display: flex; flex-direction: column; z-index: 10; overflow-y: auto; overflow-x: hidden; }
   
-  .cyber-input { width: 100%; max-width: 400px; padding: 15px; background: rgba(0,0,0,0.8); border: 2px solid #ff0055; color: #ffdd00; font-family: 'Rajdhani'; font-size: 1.2rem; font-weight: bold; border-radius: 8px; text-align: center; outline: none; margin-top: 5px; box-sizing: border-box; transition: 0.3s; text-transform: uppercase; }
-  .cyber-input:focus { border-color: #ffdd00; box-shadow: 0 0 20px rgba(255, 221, 0, 0.4); }
+  .cyber-input { width: 100%; max-width: 400px; padding: 15px; background: rgba(0,0,0,0.9); border: 2px solid #ff0055; color: #ffdd00; font-family: 'Rajdhani'; font-size: 1.2rem; font-weight: bold; border-radius: 8px; text-align: center; outline: none; margin-top: 5px; box-sizing: border-box; transition: 0.3s; text-transform: uppercase; }
+  .cyber-input:focus { border-color: #ffdd00; box-shadow: 0 0 20px rgba(255, 0, 85, 0.6); }
   
   .btn-container { width: 100%; display: flex; justify-content: center; padding: 20px; box-sizing: border-box; margin-top: 20px; padding-bottom: 50px; }
-  .btn-action { width: 100%; max-width: 400px; padding: 20px; background: linear-gradient(90deg, #ff0055, #ff00de); color: white; font-family: 'Black Ops One'; font-size: 1.5rem; border: none; border-radius: 50px; cursor: pointer; text-transform: uppercase; box-shadow: 0 5px 30px rgba(255,0,85,0.4); text-shadow: 2px 2px 0 black; transition: all 0.2s; }
+  .btn-action { width: 100%; max-width: 400px; padding: 20px; background: linear-gradient(90deg, #ff0055, #6600cc); color: white; font-family: 'Black Ops One'; font-size: 1.5rem; border: none; border-radius: 50px; cursor: pointer; text-transform: uppercase; box-shadow: 0 5px 30px rgba(255,0,85,0.4); text-shadow: 2px 2px 0 black; transition: all 0.2s; }
   .btn-action:active { transform: scale(0.95); }
   .btn-secondary { background: #222; color: white; border: 2px solid #555; box-shadow: none; font-size: 1.2rem; }
   
   .container { padding: 20px; max-width: 650px; margin: 0 auto; width: 100%; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; }
-  .glass-card { background: linear-gradient(135deg, rgba(20,10,10,0.95), rgba(30,10,20,0.9)); border: 1px solid rgba(255,0,85,0.3); border-radius: 16px; padding: 20px; margin-bottom: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); backdrop-filter: blur(10px); }
+  .glass-card { background: linear-gradient(135deg, rgba(20,5,5,0.95), rgba(10,5,20,0.95)); border: 1px solid rgba(255,0,85,0.3); border-radius: 16px; padding: 20px; margin-bottom: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.9); backdrop-filter: blur(10px); }
   
   .task-label { color: #ff0055; font-weight: 900; letter-spacing: 2px; margin-bottom: 12px; text-transform: uppercase; font-size: 0.9rem; border-bottom: 1px solid #333; padding-bottom: 5px; }
   .highlight { color: #ffdd00; font-weight: bold; text-decoration: underline; }
@@ -33,9 +33,9 @@ const GLOBAL_CSS = `
   .assoc-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
   .assoc-letter { font-size: 1.8rem; font-weight: 900; color: #ff0055; min-width: 30px; text-align: center; }
   
-  .top-bar { padding: 15px 20px; background: rgba(0,0,0,0.9); border-bottom: 2px solid #ff0055; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  .top-bar { padding: 15px 20px; background: rgba(0,0,0,0.95); border-bottom: 2px solid #ff0055; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
   .menu { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; }
-  .glitch-title { font-size: 3.5rem; color: #fff; font-family: 'Black Ops One'; line-height: 0.9; margin-bottom: 30px; text-shadow: 3px 3px 0 #ff0055, -3px -3px 0 #ff00de; }
+  .glitch-title { font-size: 3.5rem; color: #fff; font-family: 'Black Ops One'; line-height: 0.9; margin-bottom: 30px; text-shadow: 3px 3px 0 #ff0055, -3px -3px 0 #6600cc; }
   
   .vote-slider-container { margin-top: 15px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; border: 1px dashed #555; }
   .vote-label { font-size: 0.9rem; color: #aaa; display: flex; justify-content: space-between; margin-bottom: 5px; }
@@ -47,7 +47,7 @@ const GLOBAL_CSS = `
 `;
 
 // ==========================================
-// 2. 3D HÁTTÉR (VÖRÖS/SÖTÉT TÉMA)
+// 2. 3D HÁTTÉR (DARK & RED)
 // ==========================================
 function FloatingDebris() {
   const mesh = useRef<any>(null);
@@ -82,9 +82,9 @@ function Scene3D() {
   return (
     <>
       <PerspectiveCamera makeDefault position={[0, 0, 20]} />
-      <ambientLight intensity={0.3} />
+      <ambientLight intensity={0.2} />
       <pointLight position={[10, 10, 10]} intensity={1.5} color="#ff0055" />
-      <pointLight position={[-10, -10, -10]} intensity={1.5} color="#5500ff" />
+      <pointLight position={[-10, -10, -10]} intensity={1.5} color="#4400aa" />
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
       <Float speed={2} rotationIntensity={0.5} floatIntensity={1}><FloatingDebris /></Float>
     </>
@@ -108,7 +108,7 @@ const TRASH_CELEBS = [
 ];
 
 const SITUATIONS = [
-  "A Blaha Lujza téren {WHO} éppen ...-t csinál a szökőkútban.",
+  "A Blahán {WHO} éppen ...-t csinál a szökőkútban.",
   "A Parlament közepén {WHO} ...-al keni be a meztelen testét.",
   "A ravatalozóban {WHO} véletlenül elejtett egy ...-t a koporsóba.",
   "{WHO} egy toi-toi vécében ...-t próbál lehúzni.",
@@ -201,7 +201,7 @@ const generateTasks = () => {
 };
 
 // ==========================================
-// 4. JÁTÉK LOGIKA (FIXED NEXT ROUND + SEPARATION)
+// 4. JÁTÉK LOGIKA (FIXED NEXT ROUND + SYNC)
 // ==========================================
 export default function App() {
   const [view, setView] = useState('MENU');
@@ -236,7 +236,10 @@ export default function App() {
   // --- AUTOMATIKUS TOVÁBBLÉPÉS (WATCHER) ---
   useEffect(() => {
     if (role === 'HOST' && players.length > 0) {
+        // Csak akkor lépünk, ha mindenki válasza NEM null (tehát kész)
         const allDone = players.every(p => p.answers !== null);
+        
+        // Ha mindenki kész és a nézet PLAYING vagy WAITING (hogy ne loopoljon szavazás közben)
         if (allDone && (view === 'PLAYING' || view === 'WAITING')) {
             console.log("MINDENKI KÉSZ! INDUL A SZAVAZÁS...");
             setTimeout(() => startVotingPhase(players), 1000); 
@@ -283,26 +286,25 @@ export default function App() {
 
   // --- ÚJ KÖR INDÍTÁSA (JAVÍTVA) ---
   const startGameHost = () => {
-    // 1. Mindenkinek új feladat generálása ÉS a válaszok törlése (NULL)
+    // 1. Mindenkinek új feladat + válasz RESET
     const updatedPlayers = players.map(p => ({ 
         ...p, 
         tasks: generateTasks(), 
-        answers: null // FONTOS: Reseteljük a válaszokat null-ra!
+        answers: null // FONTOS: Reseteljük null-ra
     }));
     
-    setPlayers(updatedPlayers); // Host state frissítése
+    setPlayers(updatedPlayers); 
     
-    // 2. Kiküldés a klienseknek
     connsRef.current.forEach(conn => {
       const pData = updatedPlayers.find(p => p.id === conn.peer); 
       if (pData) conn.send({ type: 'START_GAME', tasks: pData.tasks });
     });
     
-    // 3. Host saját adatainak frissítése
     const hostData = updatedPlayers.find(p => p.id === roomId); 
     if(hostData) setMyTasks(hostData.tasks);
     
-    setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); // Inputok törlése
+    // Inputok törlése
+    setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); 
     setView('PLAYING'); 
     setTimeLeft(180);
   };
@@ -313,10 +315,9 @@ export default function App() {
     conn.on('open', () => { setRole('CLIENT'); setRoomId(joinCode); conn.send({ type: 'JOIN', name: myName }); setView('LOBBY'); });
     conn.on('data', (data: any) => {
       if (data.type === 'UPDATE_PLAYERS') setPlayers(data.payload);
-      // Kliens oldali reset új játéknál
       if (data.type === 'START_GAME') { 
           setMyTasks(data.tasks); 
-          setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); 
+          setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); // Reset client inputs
           setView('PLAYING'); 
           setTimeLeft(180); 
       }
@@ -370,9 +371,8 @@ export default function App() {
     const target = currentPlayersList[index]; 
     if (!target) return;
 
-    // Küldjük az ID-t is, hogy tudjuk, kit értékelünk!
     const packet = {
-        id: target.id, // EZ FONTOS
+        id: target.id,
         name: target.name,
         tasks: target.tasks,
         answers: target.answers || { t1:"-", t2:"-", t3_1:"-", t3_2:"-", t4_1:"-", t4_2:"-", t4_3:"-" }
@@ -387,7 +387,6 @@ export default function App() {
 
   const submitVote = () => {
     if (role === 'HOST') { 
-      // Ha én vagyok a célpont, nem kapok pontot magamtól (vagy 0-t adok)
       if(votingData.id !== myId) addScoreToCurrent(votes); 
       
       const nextIdx = votingIndex + 1; 
@@ -395,7 +394,6 @@ export default function App() {
       setTimeout(() => broadcastVoting(nextIdx, players), 500); 
     } 
     else { 
-      // Kliens is csak akkor küld, ha nem ő a célpont (UI kezeli, de biztos ami biztos)
       if(votingData.id !== myId) sendToHost('SUBMIT_VOTE', { scores: votes }); 
       setView('WAITING_NEXT_VOTE'); 
     }
@@ -430,8 +428,11 @@ export default function App() {
           </div>
         )}
 
-        {/* GAME */}
-        {view === 'PLAYING' && myTasks && (
+        {/* GAME - BIZTONSÁGI BETÖLTÉS */}
+        {view === 'PLAYING' && (
+          !myTasks ? (
+             <div className="menu"><h1>TÖLTÉS...</h1></div> 
+          ) : (
           <div className="container">
             <div className="top-bar"><div style={{fontWeight:'bold', color:'#ff0055'}}>{myName}</div><div className="room-code" style={{color: timeLeft<10?'red':'white'}}>{timeLeft}</div></div>
             
@@ -451,13 +452,14 @@ export default function App() {
 
             <div className="btn-container"><button className="btn-action" onClick={submitMyAnswers}>KÉSZ VAGYOK</button></div>
           </div>
+          )
         )}
 
         {view === 'WAITING' && (<div className="menu"><h2>VÁRJUK A TÖBBIEKET...</h2><div style={{color:'#ff0055', marginBottom:'20px'}}>{players.filter(p=>p.answers).length} / {players.length} játékos kész</div><div style={{fontSize:'3rem', margin:'20px'}}>⏳</div>{role === 'HOST' && <button className="btn-action btn-secondary" style={{width:'auto', position:'relative'}} onClick={()=>startVotingPhase(players)}>KÉNYSZERÍTÉS (SKIP)</button>}</div>)}
         
         {view === 'WAITING_NEXT_VOTE' && (<div className="menu"><h2>KÖVETKEZŐ EMBER...</h2></div>)}
 
-        {/* --- PONTOZÁS (JAVÍTOTT: Target vs Voter nézet) --- */}
+        {/* --- PONTOZÁS (FORGÓSZÍNPAD) --- */}
         {view === 'VOTING' && votingData && (
           <div className="container">
             <h2 style={{textAlign:'center', color:'#ff0055', marginBottom:'10px'}}>

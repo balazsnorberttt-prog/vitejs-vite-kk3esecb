@@ -5,7 +5,7 @@ import { Stars, Float, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 
 // ==========================================
-// 1. STÍLUSOK (DARK & DIRTY)
+// 1. STÍLUSOK (DARK MODE & MOBIL)
 // ==========================================
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@500;700;900&display=swap');
@@ -44,6 +44,8 @@ const GLOBAL_CSS = `
   
   .lobby-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 30px; margin-bottom: 30px; }
   .player-pill { padding: 10px 20px; background: #333; border-radius: 30px; border: 1px solid #555; font-weight: bold; }
+  
+  .wait-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 60vh; text-align: center; }
 `;
 
 // ==========================================
@@ -92,7 +94,7 @@ function Scene3D() {
 }
 
 // ==========================================
-// 3. ADATBÁZIS (18+, MORBID)
+// 3. ADATBÁZIS (FULL TRASH)
 // ==========================================
 const TRASH_CELEBS = [
   "Tóth Gabi", "Alekosz", "Varga Irén", "Berki szelleme", "Kis Grófo", "Pumped Gabo", "MC Isti", "Bartos Cs.", 
@@ -201,7 +203,7 @@ const generateTasks = () => {
 };
 
 // ==========================================
-// 4. JÁTÉK LOGIKA (FIXED HOST CRASH)
+// 4. JÁTÉK LOGIKA (V6.0 STABLE)
 // ==========================================
 export default function App() {
   const [view, setView] = useState('MENU');
@@ -237,7 +239,6 @@ export default function App() {
   useEffect(() => {
     if (role === 'HOST' && players.length > 0) {
         const allDone = players.every(p => p.answers !== null);
-        // Csak akkor lépünk, ha tényleg játékban vagyunk (nem menüben, nem értékelésnél)
         if (allDone && (view === 'PLAYING' || view === 'WAITING')) {
             console.log("MINDENKI KÉSZ! INDUL A SZAVAZÁS...");
             setTimeout(() => startVotingPhase(players), 1000); 
@@ -282,13 +283,11 @@ export default function App() {
 
   const broadcast = (payload: any, type: string) => { connsRef.current.forEach(conn => conn.send({ type, payload })); };
 
-  // --- ÚJ KÖR INDÍTÁSA (TELJES RESET) ---
+  // --- ÚJ KÖR INDÍTÁSA (STABILIZÁLT) ---
   const startGameHost = () => {
-    // 1. Töröljük a szavazási indexet és a nézetet, mielőtt bármit csinálunk
     setVotingIndex(0);
     setVotingData(null);
 
-    // 2. Új feladatok generálása
     const updatedPlayers = players.map(p => ({ 
         ...p, 
         tasks: generateTasks(), 
@@ -319,7 +318,7 @@ export default function App() {
       if (data.type === 'START_GAME') { 
           setMyTasks(data.tasks); 
           setMyAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" }); 
-          setVotingData(null); // Kliens is törölje a régi szavazást
+          setVotingData(null); 
           setView('PLAYING'); 
           setTimeLeft(180); 
       }
@@ -363,6 +362,7 @@ export default function App() {
   };
 
   const broadcastVoting = (index: number, currentPlayersList: any[] = players) => {
+    // HOST CRASH FIX: Ha vége a listának, Leaderboard, különben CRASH!
     if (index >= currentPlayersList.length) { 
         broadcast({ players: currentPlayersList }, 'SHOW_LEADERBOARD'); 
         setPlayers(currentPlayersList); 
@@ -371,7 +371,7 @@ export default function App() {
     }
     
     const target = currentPlayersList[index]; 
-    if (!target) return;
+    if (!target) return; // Biztonsági csekk
 
     const packet = {
         id: target.id,
@@ -401,13 +401,15 @@ export default function App() {
     }
   };
 
+  // KÜLÖN NÉZET RENDERELÉS: HA ÉN VAGYOK SORON, MÁST MUTAT
+  const isMyTurn = votingData && votingData.id === myId;
+
   return (
     <>
       <style>{GLOBAL_CSS}</style>
       <div className="app-layer">
         <div style={{position:'absolute', inset:0, zIndex:-1}}><Canvas><Scene3D /></Canvas></div>
         
-        {/* MENU */}
         {view === 'MENU' && (
           <div className="menu">
             <h1 className="glitch-title">TRASH<br/>UNIVERSE</h1>
@@ -419,7 +421,6 @@ export default function App() {
           </div>
         )}
 
-        {/* LOBBY */}
         {view === 'LOBBY' && (
           <div className="menu">
             <h1 className="glitch-title" style={{fontSize:'3rem'}}>LOBBY</h1>
@@ -430,26 +431,14 @@ export default function App() {
           </div>
         )}
 
-        {/* GAME */}
         {view === 'PLAYING' && (
           !myTasks ? <div className="menu"><h1>TÖLTÉS...</h1></div> : (
           <div className="container">
             <div className="top-bar"><div style={{fontWeight:'bold', color:'#ff0055'}}>{myName}</div><div className="room-code" style={{color: timeLeft<10?'red':'white'}}>{timeLeft}</div></div>
-            
             <div className="glass-card"><div className="task-label">1. SZITUÁCIÓ (Egészítsd ki!)</div><div style={{marginBottom:'10px'}} dangerouslySetInnerHTML={{__html: myTasks.t1.text.replace("...", "_______")}} /><div style={{color:'#ffdd00', fontSize:'0.8rem', fontWeight:'bold'}}>KEZDŐBETŰ: {myTasks.t1.letter}</div><input className="cyber-input" placeholder="Írd be..." value={myAnswers.t1} onChange={e=>setMyAnswers({...myAnswers, t1: e.target.value})} /></div>
-            
             <div className="glass-card"><div className="task-label">2. KÍN-PAD (Vallomás)</div><div style={{marginBottom:'10px'}}>{myTasks.t2.text}</div><div style={{color:'#ffdd00', fontSize:'0.8rem', fontWeight:'bold'}}>KEZDŐBETŰ: {myTasks.t2.letter}</div><input className="cyber-input" placeholder="Válasz..." value={myAnswers.t2} onChange={e=>setMyAnswers({...myAnswers, t2: e.target.value})} /></div>
-            
             <div className="glass-card"><div className="task-label">3. SZTORIGYÁR (Alkoss mondatot!)</div><div className="story-row"><div className="celeb-static">{myTasks.t3.subject} ...</div><input className="cyber-input" style={{marginTop:0}} placeholder="mit csinált?" value={myAnswers.t3_1} onChange={e=>setMyAnswers({...myAnswers, t3_1: e.target.value})} /></div><div className="story-row"><div className="celeb-static">... {myTasks.t3.target}-vel/val,</div><input className="cyber-input" style={{marginTop:0}} placeholder="és mi történt a végén?" value={myAnswers.t3_2} onChange={e=>setMyAnswers({...myAnswers, t3_2: e.target.value})} /></div></div>
-            
-            <div className="glass-card">
-               <div className="task-label">4. ASSZOCIÁCIÓ</div>
-               <div style={{textAlign:'center', marginBottom:'15px'}}><div style={{color:'#aaa', fontSize:'0.9rem'}}>Mi jut eszedbe erről:</div><div className="celeb-static" style={{fontSize:'1.5rem', margin:'10px 0', color:'#ffdd00'}}>{myTasks.t4.topic}</div></div>
-               <div className="assoc-row"><span className="assoc-letter">{myTasks.t4.letters[0]}</span> <input className="cyber-input" value={myAnswers.t4_1} onChange={e=>setMyAnswers({...myAnswers, t4_1: e.target.value})} /></div>
-               <div className="assoc-row"><span className="assoc-letter">{myTasks.t4.letters[1]}</span> <input className="cyber-input" value={myAnswers.t4_2} onChange={e=>setMyAnswers({...myAnswers, t4_2: e.target.value})} /></div>
-               <div className="assoc-row"><span className="assoc-letter">{myTasks.t4.letters[2]}</span> <input className="cyber-input" value={myAnswers.t4_3} onChange={e=>setMyAnswers({...myAnswers, t4_3: e.target.value})} /></div>
-            </div>
-
+            <div className="glass-card"><div className="task-label">4. ASSZOCIÁCIÓ</div><div style={{textAlign:'center', marginBottom:'15px'}}><div style={{color:'#aaa', fontSize:'0.9rem'}}>Mi jut eszedbe erről:</div><div className="celeb-static" style={{fontSize:'1.5rem', margin:'10px 0', color:'#ffdd00'}}>{myTasks.t4.topic}</div></div><div className="assoc-row"><span className="assoc-letter">{myTasks.t4.letters[0]}</span> <input className="cyber-input" value={myAnswers.t4_1} onChange={e=>setMyAnswers({...myAnswers, t4_1: e.target.value})} /></div><div className="assoc-row"><span className="assoc-letter">{myTasks.t4.letters[1]}</span> <input className="cyber-input" value={myAnswers.t4_2} onChange={e=>setMyAnswers({...myAnswers, t4_2: e.target.value})} /></div><div className="assoc-row"><span className="assoc-letter">{myTasks.t4.letters[2]}</span> <input className="cyber-input" value={myAnswers.t4_3} onChange={e=>setMyAnswers({...myAnswers, t4_3: e.target.value})} /></div></div>
             <div className="btn-container"><button className="btn-action" onClick={submitMyAnswers}>KÉSZ VAGYOK</button></div>
           </div>
           )
@@ -459,72 +448,29 @@ export default function App() {
         
         {view === 'WAITING_NEXT_VOTE' && (<div className="menu"><h2>TÖLTÉS...</h2></div>)}
 
-        {/* --- PONTOZÁS (JAVÍTOTT: Target vs Voter nézet) --- */}
+        {/* --- PONTOZÁS (BIZTONSÁGI VÉDELEM SAJÁT SZAVAZÁS ELLEN) --- */}
         {view === 'VOTING' && votingData && (
+          isMyTurn ? (
+             <div className="menu">
+                <h1 style={{color:'#ff0055', fontSize:'2.5rem'}}>MOST TÉGED ÉRTÉKELNEK!</h1>
+                <div style={{color:'#aaa', marginBottom:'30px'}}>Dőlj hátra és izgulj...</div>
+                <div style={{fontSize:'5rem', animation:'pulse 1s infinite'}}>💀</div>
+             </div>
+          ) : (
           <div className="container">
-            <h2 style={{textAlign:'center', color:'#ff0055', marginBottom:'10px'}}>
-               {votingData.id === myId ? "MOST A TE VÁLASZAIDAT NÉZIK!" : `MOST ŐT ÉRTÉKELJÜK: ${votingData.name}`}
-            </h2>
+            <h2 style={{textAlign:'center', color:'#ff0055', marginBottom:'10px'}}>MOST ŐT ÉRTÉKELJÜK:</h2>
+            <h1 style={{textAlign:'center', fontSize:'3rem', margin:0, color:'white', textShadow:'0 0 10px white'}}>{votingData.name}</h1>
             
-            {/* T1 */}
-            <div className="glass-card">
-               <div className="task-label">1. SZITUÁCIÓ</div>
-               <div style={{fontSize:'0.8rem', color:'#aaa'}} dangerouslySetInnerHTML={{__html: votingData.tasks?.t1.text}} />
-               <div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t1 || "-"}</div>
-               {votingData.id !== myId && (
-                 <div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t1}</span></div><input type="range" min="1" max="10" value={votes.t1} onChange={e=>setVotes({...votes, t1: e.target.value})} /></div>
-               )}
-            </div>
+            <div className="glass-card"><div className="task-label">1. SZITUÁCIÓ</div><div style={{fontSize:'0.8rem', color:'#aaa'}} dangerouslySetInnerHTML={{__html: votingData.tasks?.t1.text}} /><div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t1 || "-"}</div><div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t1}</span></div><input type="range" min="1" max="10" value={votes.t1} onChange={e=>setVotes({...votes, t1: e.target.value})} /></div></div>
+            <div className="glass-card"><div className="task-label">2. KÍN-PAD</div><div style={{fontSize:'0.8rem', color:'#aaa'}}>{votingData.tasks?.t2.text}</div><div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t2 || "-"}</div><div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t2}</span></div><input type="range" min="1" max="10" value={votes.t2} onChange={e=>setVotes({...votes, t2: e.target.value})} /></div></div>
+            <div className="glass-card"><div className="task-label">3. SZTORI</div><div style={{background:'black', padding:'15px', borderRadius:'8px', color:'#00f3ff', lineHeight:'1.5', fontSize:'1.2rem'}}><span style={{color:'#ff00de', fontWeight:'bold'}}>{votingData.tasks?.t3.subject}</span> {" "}{votingData.answers?.t3_1}{" "} <span style={{color:'#fff', fontWeight:'bold'}}>{votingData.tasks?.t3.target}-vel/val</span>, {" "}{votingData.answers?.t3_2}</div><div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t3}</span></div><input type="range" min="1" max="10" value={votes.t3} onChange={e=>setVotes({...votes, t3: e.target.value})} /></div></div>
+            <div className="glass-card"><div className="task-label">4. ASSZOCIÁCIÓ</div><div style={{marginBottom:'10px', fontWeight:'bold'}}>{votingData.tasks?.t4.topic}:</div><ul style={{listStyle:'none', padding:0}}><li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{votingData.tasks?.t4.letters[0]}</span> - {votingData.answers?.t4_1 || "-"}</li><li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{votingData.tasks?.t4.letters[1]}</span> - {votingData.answers?.t4_2 || "-"}</li><li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{votingData.tasks?.t4.letters[2]}</span> - {votingData.answers?.t4_3 || "-"}</li></ul><div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t4}</span></div><input type="range" min="1" max="10" value={votes.t4} onChange={e=>setVotes({...votes, t4: e.target.value})} /></div></div>
 
-            {/* T2 */}
-            <div className="glass-card">
-               <div className="task-label">2. KÍN-PAD</div>
-               <div style={{fontSize:'0.8rem', color:'#aaa'}}>{votingData.tasks?.t2.text}</div>
-               <div className="cyber-input" style={{background:'black', color:'#ffdd00', border:'none'}}>{votingData.answers?.t2 || "-"}</div>
-               {votingData.id !== myId && (
-                 <div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t2}</span></div><input type="range" min="1" max="10" value={votes.t2} onChange={e=>setVotes({...votes, t2: e.target.value})} /></div>
-               )}
-            </div>
-
-            {/* T3 */}
-            <div className="glass-card">
-               <div className="task-label">3. SZTORI</div>
-               <div style={{background:'black', padding:'15px', borderRadius:'8px', color:'#00f3ff', lineHeight:'1.5', fontSize:'1.2rem'}}>
-                 <span style={{color:'#ff00de', fontWeight:'bold'}}>{votingData.tasks?.t3.subject}</span> {" "}{votingData.answers?.t3_1}{" "} <span style={{color:'#fff', fontWeight:'bold'}}>{votingData.tasks?.t3.target}-vel/val</span>, {" "}{votingData.answers?.t3_2}
-               </div>
-               {votingData.id !== myId && (
-                 <div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t3}</span></div><input type="range" min="1" max="10" value={votes.t3} onChange={e=>setVotes({...votes, t3: e.target.value})} /></div>
-               )}
-            </div>
-
-            {/* T4 */}
-            <div className="glass-card">
-               <div className="task-label">4. ASSZOCIÁCIÓ</div>
-               <div style={{marginBottom:'10px', fontWeight:'bold'}}>{votingData.tasks?.t4.topic}:</div>
-               <ul style={{listStyle:'none', padding:0}}>
-                  <li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{votingData.tasks?.t4.letters[0]}</span> - {votingData.answers?.t4_1 || "-"}</li>
-                  <li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{votingData.tasks?.t4.letters[1]}</span> - {votingData.answers?.t4_2 || "-"}</li>
-                  <li style={{background:'black', padding:'10px', margin:'5px 0', borderLeft:'3px solid #ff00de'}}><span style={{color:'#ffdd00'}}>{votingData.tasks?.t4.letters[2]}</span> - {votingData.answers?.t4_3 || "-"}</li>
-               </ul>
-               {votingData.id !== myId && (
-                 <div className="vote-slider-container"><div className="vote-label"><span>VICCES?</span> <span className="score-badge">{votes.t4}</span></div><input type="range" min="1" max="10" value={votes.t4} onChange={e=>setVotes({...votes, t4: e.target.value})} /></div>
-               )}
-            </div>
-
-            <div className="btn-container">
-               {votingData.id !== myId ? (
-                 <button className="btn-action" onClick={submitVote}>SZAVAZATOK BEKÜLDÉSE</button>
-               ) : (
-                 <div style={{padding:'20px', color:'#aaa', background:'#222', borderRadius:'10px', textAlign:'center'}}>
-                    <div>A TÖBBIEK MOST ÉRTÉKELNEK TÉGED...</div>
-                    <div style={{fontSize:'3rem', marginTop:'10px'}}>👀</div>
-                 </div>
-               )}
-            </div>
+            <div className="btn-container"><button className="btn-action" onClick={submitVote}>SZAVAZATOK BEKÜLDÉSE</button></div>
           </div>
+          )
         )}
 
-        {/* RESULTS */}
         {view === 'LEADERBOARD' && (
            <div className="container"><h1 className="glitch-title" style={{textAlign:'center'}}>EREDMÉNY</h1><div className="lobby-list" style={{flexDirection:'column'}}>{players.sort((a,b) => b.score - a.score).map((p, i) => (<div key={p.id} className="glass-card" style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}><div style={{fontSize:'1.5rem', fontWeight:'bold'}}>#{i+1} {p.name}</div><div style={{fontSize:'2rem', color:'#00f3ff'}}>{p.score}</div></div>))}</div>{role === 'HOST' && <div className="btn-container"><button className="btn-action" onClick={startGameHost}>ÚJ KÖR</button></div>}</div>
         )}

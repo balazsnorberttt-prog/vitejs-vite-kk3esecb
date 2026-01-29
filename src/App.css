@@ -1,0 +1,70 @@
+:root {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #050505;
+  color: white;
+  overflow: hidden; /* Hogy ne lehessen görgetni a 3D hátteret */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* A Neon Input Mező */
+.cyber-input {
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid #00f3ff;
+  color: white;
+  font-size: 1.5rem;
+  padding: 15px;
+  width: 80%;
+  max-width: 300px;
+  text-align: center;
+  border-radius: 10px;
+  outline: none;
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+  text-transform: uppercase;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.cyber-input:focus {
+  background: rgba(0, 243, 255, 0.1);
+  box-shadow: 0 0 25px #00f3ff;
+  transform: scale(1.05);
+}
+
+/* Gombok */
+.cyber-btn {
+  background: linear-gradient(45deg, #ff0055, #ff00aa);
+  border: none;
+  color: white;
+  padding: 15px 40px;
+  font-size: 1.5rem;
+  font-weight: 900;
+  border-radius: 50px;
+  cursor: pointer;
+  margin-top: 20px;
+  box-shadow: 0 0 20px #ff0055;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: transform 0.1s;
+}
+
+.cyber-btn:active {
+  transform: scale(0.95);
+}
+
+/* Animációk */
+.shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both infinite;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}

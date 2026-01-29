@@ -1,175 +1,107 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;700;900&display=swap');
 
+/* ALAPBEÁLLÍTÁSOK */
 :root {
   --neon-blue: #00f3ff;
-  --neon-pink: #ff00aa;
   --neon-red: #ff0055;
   --neon-yellow: #ffdd00;
   --bg-dark: #050505;
 }
 
-body {
+body, html {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
   background-color: var(--bg-dark);
   color: white;
   font-family: 'Montserrat', sans-serif;
-  overflow: hidden;
-  touch-action: none;
+  overflow: hidden; /* Nincs görgetés */
 }
 
-/* EZ A RÉSZ RENDEZI A KÉPERNYŐT */
+/* UI RÉTEG - ENNEK KELL KÖZÉPEN LENNIE */
 .ui-layer {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none; /* Át lehessen kattintani a háttérre, ha kell */
-  z-index: 100; /* FONTOS: Ez hozza előre a szöveget a gömb elé! */
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important; /* Mindig legelöl */
+  pointer-events: none;
   padding: 20px;
   box-sizing: border-box;
 }
 
+/* KATTINTHATÓ DOBOZOK */
 .interactive {
-  pointer-events: auto; /* A gombokra lehessen kattintani */
-  width: 100%;
-  max-width: 500px;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 30px;
+  border-radius: 20px;
+  border: 2px solid var(--neon-blue);
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  gap: 15px;
 }
 
-/* Címek és Szövegek */
-.title-main {
+/* SZÖVEGEK */
+h1.title-main {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 4rem;
-  line-height: 0.9;
-  margin: 0 0 20px 0;
-  background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 20px rgba(0,243,255,0.4);
+  margin: 0;
+  color: var(--neon-blue);
+  text-shadow: 0 0 20px var(--neon-blue);
+  line-height: 1;
 }
 
-.room-code {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 5rem;
-  color: var(--neon-yellow);
-  margin: 10px 0;
-  letter-spacing: 5px;
-  text-shadow: 0 0 15px var(--neon-yellow);
-}
+h2 { margin: 0; font-size: 1.5rem; text-transform: uppercase; }
+p { margin: 0; color: #ccc; }
 
-/* Kártyák */
-.category-box {
-  background: rgba(0, 0, 0, 0.6);
-  padding: 20px;
-  border-radius: 15px;
-  border: 2px solid var(--neon-blue);
+/* INPUT MEZŐ */
+input.game-input {
   width: 100%;
-  margin-bottom: 20px;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
-}
-
-.category-text {
-  font-size: 1.5rem;
-  margin: 10px 0 0 0;
-  color: white;
-  text-transform: uppercase;
-  font-weight: 900;
-}
-
-.label {
-  font-size: 0.9rem;
-  color: #bbb;
-  letter-spacing: 2px;
-  font-weight: bold;
-}
-
-/* Ellenfél doboz */
-.opponent-box {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.08);
   padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  border: 1px solid #444;
-}
-
-.last-word {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 2.5rem;
-  color: var(--neon-yellow);
-  margin: 5px 0;
-  word-wrap: break-word;
-}
-
-/* Input és Gombok */
-.game-input {
-  background: rgba(0,0,0,0.7);
+  font-size: 1.5rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
   border: 2px solid white;
   color: white;
-  font-size: 1.5rem;
-  padding: 15px;
-  width: 100%;
   border-radius: 10px;
-  text-align: center;
   font-weight: bold;
   text-transform: uppercase;
-  margin-bottom: 15px;
   box-sizing: border-box;
 }
 
-.game-input:focus {
-  border-color: var(--neon-blue);
-  outline: none;
-  box-shadow: 0 0 15px var(--neon-blue);
-}
-
-.btn {
-  border: none;
-  padding: 15px 30px;
+/* GOMBOK */
+button.btn {
+  width: 100%;
+  padding: 15px;
   font-size: 1.2rem;
   font-weight: 900;
+  text-transform: uppercase;
+  border: none;
   border-radius: 50px;
   cursor: pointer;
-  width: 100%;
-  text-transform: uppercase;
   font-family: 'Montserrat', sans-serif;
   transition: transform 0.1s;
 }
-
-.btn:active { transform: scale(0.95); }
-.btn-start { background: var(--neon-blue); color: #000; box-shadow: 0 0 15px var(--neon-blue); }
-.btn-join { background: #333; color: white; border: 1px solid #666; }
+button.btn:active { transform: scale(0.95); }
+.btn-start { background: var(--neon-blue); color: black; box-shadow: 0 0 15px var(--neon-blue); }
+.btn-join { background: #333; color: white; border: 1px solid #555; }
 .btn-submit { background: linear-gradient(90deg, var(--neon-blue), #0099ff); color: white; }
-.btn-veto { background: var(--neon-red); color: white; margin-top: 10px; font-size: 1rem; padding: 10px; }
-.btn-restart { background: white; color: black; margin-top: 15px; }
+.btn-veto { background: var(--neon-red); color: white; animation: pulse 1s infinite; }
 
-/* Animációk */
-.shake { animation: shake 0.5s infinite; }
-@keyframes shake {
-  0% { transform: translate(1px, 1px) rotate(0deg); }
-  10% { transform: translate(-1px, -2px) rotate(-1deg); }
-  20% { transform: translate(-3px, 0px) rotate(1deg); }
-  30% { transform: translate(3px, 2px) rotate(0deg); }
-  40% { transform: translate(1px, -1px) rotate(1deg); }
-  50% { transform: translate(-1px, 2px) rotate(-1deg); }
-  60% { transform: translate(-3px, 1px) rotate(0deg); }
-  70% { transform: translate(3px, 1px) rotate(-1deg); }
-  80% { transform: translate(-1px, -1px) rotate(1deg); }
-  90% { transform: translate(1px, 2px) rotate(0deg); }
-  100% { transform: translate(1px, -2px) rotate(-1deg); }
-}
+/* EXTRÁK */
+.timer-bar { width: 100%; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 10px; }
+.timer-fill { height: 100%; transition: width 0.1s linear; }
 
-.bumm-text { font-size: 4rem; color: var(--neon-red); margin: 0; font-family: 'Bebas Neue', sans-serif; text-shadow: 0 0 30px red; }
-.my-turn-box { width: 100%; }
-.urgent-text { color: var(--neon-red); font-weight: 900; font-size: 1.5rem; margin: 0 0 10px 0; text-transform: uppercase; }
-.timer-bar-container { width: 100%; height: 10px; background: #333; margin-top: 20px; border-radius: 5px; overflow: hidden; }
-.timer-bar { height: 100%; transition: width 0.1s linear; }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }

@@ -5,25 +5,24 @@ import { OrbitControls, Stars, Sphere, MeshDistortMaterial } from '@react-three/
 import * as THREE from 'three';
 
 // ==========================================
-// 1. A TARTALOM (ADATBÁZIS)
+// 1. TARTALOM GENERÁTOR (ADATBÁZIS)
 // ==========================================
 
-// "A" Lista: Alanyok (Kik?)
 const ALANYOK = [
   "Politikus", "Tanár", "Ex-barátnő", "Szomszéd", "Kutya", 
   "BKV ellenőr", "Kocsmáros", "Influenszer", "Nagymama", 
-  "A főnököd", "Egy részeg turista", "Taxis", "Valóságshow szereplő"
+  "A főnököd", "Egy részeg turista", "Taxis", "Valóságshow szereplő",
+  "Postás", "Futár", "Biztonsági őr", "Matektanár"
 ];
 
-// "B" Lista: Szituációk (Mit csinál?)
 const SZITUACIOK = [
   "aki lopott a boltból", "aki részegen énekel", "aki bepisilt", 
   "aki megnyerte a lottót", "aki téged üldöz", "aki meztelenül fut", 
   "aki sírva fakad", "aki nem tud számolni", "aki elfelejtette a nevét",
-  "aki rossz buszra szállt", "aki a szőnyegre hányt"
+  "aki rossz buszra szállt", "aki a szőnyegre hányt", "aki megkérte a kezed",
+  "aki ellopta a biciklid", "aki beszorult a liftbe"
 ];
 
-// "C" Lista: Fix, Kész Kategóriák (Magyar Valóság & Kínos)
 const FIX_KATEGORIAK = [
   "Dolog, ami elromlik a MÁV-on",
   "Amit a nagymamád mond, ha nem eszel",
@@ -44,15 +43,11 @@ const FIX_KATEGORIAK = [
   "Híresség, akivel NEM ragadnál be a liftbe"
 ];
 
-// ==========================================
-// 2. A GENERÁTOR LOGIKA
-// ==========================================
-
+// Kategória generáló logika (Remix)
 const generateUniqueCategory = (usedSet: Set<string>) => {
   let newCat = "";
   let attempts = 0;
 
-  // Próbálunk olyat generálni, ami még nem volt
   while (attempts < 50) {
     const r = Math.random();
     
@@ -72,17 +67,23 @@ const generateUniqueCategory = (usedSet: Set<string>) => {
     }
     attempts++;
   }
-  return "Minden kategória elfogyott! (Indítsd újra)";
+  return "Kifogytunk! Indítsd újra a szobát.";
 };
 
 const generateRoomId = () => Math.floor(1000 + Math.random() * 9000).toString();
 
 // ==========================================
-// 3. 3D GRAFIKA (LOW POLY - MOBILBARÁT)
+// 2. 3D GRAFIKA (MOBIL OPTIMALIZÁLT)
 // ==========================================
-function CyberBomb({ urgency, isExploded }: any) {
+function CyberBomb({ urgency, isExploded }: { urgency: number, isExploded: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null!);
-  const color = new THREE.Color().lerpColors(new THREE.Color('#00ff88'), new THREE.Color('#ff0055'), urgency);
+  
+  // Színátmenet: Zöld -> Sárga -> Piros
+  const color = new THREE.Color().lerpColors(
+    new THREE.Color('#00ff88'), 
+    new THREE.Color('#ff0055'), 
+    urgency
+  );
 
   useFrame((state) => {
     if (isExploded || !meshRef.current) return;
@@ -100,21 +101,22 @@ function CyberBomb({ urgency, isExploded }: any) {
         emissiveIntensity={isExploded ? 8 : 0.6 + urgency}
         distort={0.3 + urgency * 0.5} 
         speed={2 + urgency * 4} 
+        roughness={0.2}
       />
     </Sphere>
   );
 }
 
 // ==========================================
-// 4. FŐ ALKALMAZÁS
+// 3. FŐ ALKALMAZÁS LOGIKA
 // ==========================================
 export default function App() {
-  const [gameState, setGameState] = useState('MENU'); 
+  const [gameState, setGameState] = useState('MENU'); // MENU, LOBBY, PLAYING, GAME_OVER
   const [role, setRole] = useState<'HOST' | 'CLIENT' | null>(null);
   const [roomId, setRoomId] = useState('');
   const [joinId, setJoinId] = useState('');
   
-  // Játékadatok
+  // Játék state
   const [category, setCategory] = useState('');
   const [lastWord, setLastWord] = useState('');
   const [turn, setTurn] = useState<'HOST' | 'CLIENT'>('HOST');
@@ -123,41 +125,54 @@ export default function App() {
   const [input, setInput] = useState('');
   const [loser, setLoser] = useState('');
   
-  // Memória a használt kategóriáknak
+  // Használt kategóriák tárolása
   const usedCategories = useRef(new Set<string>());
 
-  const peerRef = useRef<Peer>(null!);
-  const connRef = useRef<any>(null!);
+  // PeerJS referenciák
+  const peerRef = useRef<Peer | null>(null);
+  const connRef = useRef<any>(null);
 
-  // --- HÁLÓZAT ---
+  // --- HOST LÉTREHOZÁSA ---
   const startHost = () => {
     const id = generateRoomId();
     const peer = new Peer(id);
+    
     peer.on('open', (id) => {
-      setRoomId(id); setRole('HOST'); setGameState('LOBBY');
-      usedCategories.current.clear(); // Új szoba, tiszta pakli
+      setRoomId(id); 
+      setRole('HOST'); 
+      setGameState('LOBBY');
+      usedCategories.current.clear();
     });
+
     peer.on('connection', (conn) => {
       connRef.current = conn;
       conn.on('data', handleData);
+      // Ha valaki csatlakozott, 1mp múlva indul a játék
       setTimeout(hostStartGame, 1000);
     });
+    
     peerRef.current = peer;
   };
 
+  // --- CSATLAKOZÁS ---
   const joinRoom = () => {
     if (joinId.length < 4) return;
     const peer = new Peer();
+    
     peer.on('open', () => {
       const conn = peer.connect(joinId);
       connRef.current = conn;
-      setRole('CLIENT'); setGameState('LOBBY');
+      setRole('CLIENT'); 
+      setGameState('LOBBY');
       conn.on('data', handleData);
     });
+    
     peerRef.current = peer;
   };
 
+  // --- ADATFOGADÁS KÖZPONT ---
   const handleData = (data: any) => {
+    // Állapotfrissítés fogadása (Mindenki)
     if (data.type === 'STATE_UPDATE') {
       setGameState(data.state);
       setCategory(data.category);
@@ -166,21 +181,24 @@ export default function App() {
       setMaxTime(data.maxTime);
       setLastWord(data.lastWord);
     }
+    
+    // Csak HOST kezeli ezeket:
     if (data.type === 'ACTION_SUBMIT') {
       if (role === 'HOST') handleTurnChange(data.word); 
     }
     if (data.type === 'ACTION_VETO') {
       if (role === 'HOST') handleVeto();
     }
+    
+    // Vége
     if (data.type === 'GAME_OVER') {
       setGameState('GAME_OVER');
       setLoser(data.loser);
     }
   };
 
-  // --- LOGIKA (HOST) ---
+  // --- JÁTÉK VEZÉRLÉS (CSAK HOST) ---
   const hostStartGame = () => {
-    // GENERÁTOR HÍVÁSA!
     const cat = generateUniqueCategory(usedCategories.current);
     
     setCategory(cat);
@@ -194,7 +212,8 @@ export default function App() {
 
   const handleTurnChange = (word: string) => {
     const nextTurn = turn === 'HOST' ? 'CLIENT' : 'HOST';
-    const newMax = Math.max(5, maxTime - 1); // Gyorsul
+    // Idő csökkentése minden körben (min 5mp)
+    const newMax = Math.max(5, maxTime - 1); 
     setMaxTime(newMax);
     setTurn(nextTurn);
     setLastWord(word);
@@ -202,9 +221,9 @@ export default function App() {
   };
 
   const handleVeto = () => {
+    // Vétó: Vissza az előzőnek!
     const prevTurn = turn === 'HOST' ? 'CLIENT' : 'HOST';
     setTurn(prevTurn);
-    // Büntetés: nem kap időt vissza!
     broadcast(category, timeLeft, prevTurn, 'PLAYING', "⛔ KAMU! (VISSZA) ⛔");
   };
 
@@ -217,14 +236,19 @@ export default function App() {
     }
   };
 
+  // --- IDŐZÍTŐ (CSAK HOST) ---
   useEffect(() => {
     if (role !== 'HOST' || gameState !== 'PLAYING') return;
+
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         const newVal = prev - 0.1;
+        
+        // Szinkronizálás másodpercenként
         if (Math.floor(newVal * 10) % 10 === 0) {
            broadcast(category, newVal, turn, 'PLAYING', lastWord);
         }
+
         if (newVal <= 0) {
           const lsr = turn;
           setLoser(lsr);
@@ -235,15 +259,18 @@ export default function App() {
         return newVal;
       });
     }, 100);
-    return () => clearInterval(timer);
-  }, [gameState, role, turn, category, lastWord]);
 
-  // --- UI INPUT ---
+    return () => clearInterval(timer);
+  }, [gameState, role, turn, category, lastWord, maxTime]);
+
+  // --- INPUT KEZELÉS ---
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.length < 2) return;
+
     if (role === 'HOST') handleTurnChange(input);
     else connRef.current.send({ type: 'ACTION_SUBMIT', word: input });
+    
     setInput('');
   };
 
@@ -257,6 +284,7 @@ export default function App() {
 
   return (
     <>
+      {/* 3D HÁTTÉR */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
         <Canvas camera={{ position: [0, 0, 5] }}>
           <ambientLight intensity={0.4} />
@@ -267,33 +295,50 @@ export default function App() {
         </Canvas>
       </div>
 
+      {/* UI RÉTEG */}
       <div className="ui-layer">
+        
+        {/* MENÜ */}
         {gameState === 'MENU' && (
-          <div className="interactive menu-box">
+          <div className="interactive">
             <h1 className="title-main">TIK-TAK<br/>BUMM</h1>
-            <p style={{color:'#00ff88', marginBottom:'20px'}}>MAGYAR VALÓSÁG EDITION</p>
+            <p style={{color:'#00f3ff', marginBottom:'20px', fontWeight: 'bold'}}>MAGYAR VALÓSÁG EDITION</p>
+            
             <button onClick={startHost} className="btn btn-start">ÚJ SZOBA</button>
-            <p className="or-text">vagy</p>
-            <input className="game-input" placeholder="KÓD" value={joinId} onChange={e=>setJoinId(e.target.value)} />
+            <p style={{margin: '15px 0', opacity: 0.7}}>vagy</p>
+            <input 
+              className="game-input" 
+              placeholder="SZOBA KÓD" 
+              value={joinId} 
+              onChange={e => setJoinId(e.target.value)} 
+              style={{width: '200px'}}
+            />
             <button onClick={joinRoom} className="btn btn-join">CSATLAKOZÁS</button>
           </div>
         )}
 
+        {/* LOBBY */}
         {gameState === 'LOBBY' && (
           <div className="interactive">
-            <p>SZOBA KÓDJA:</p>
+            <p className="label">A SZOBA KÓDJA:</p>
             <h1 className="room-code">{roomId || joinId}</h1>
-            <p className="pulse">{role === 'HOST' ? 'Várakozás játékosra...' : 'Csatlakozva! Host indít...'}</p>
+            <p className="shake" style={{marginTop: '20px'}}>
+              {role === 'HOST' ? 'Várakozás a másik játékosra...' : 'Csatlakozva! A Host indít...'}
+            </p>
           </div>
         )}
 
+        {/* JÁTÉK */}
         {gameState === 'PLAYING' && (
-          <div className="interactive game-container">
+          <div className="interactive">
+            
+            {/* Kategória */}
             <div className="category-box">
-              <span className="label">FELADAT:</span>
+              <span className="label">A FELADAT:</span>
               <h2 className="category-text">{category}</h2>
             </div>
 
+            {/* Ellenfél szava + Vétó */}
             {!isMyTurn && (
               <div className="opponent-box">
                 <span className="label">ELLENFÉL VÁLASZA:</span>
@@ -304,34 +349,48 @@ export default function App() {
               </div>
             )}
 
+            {/* Saját kör */}
             {isMyTurn ? (
               <div className="my-turn-box shake">
                 <p className="urgent-text">TE JÖSSZ!</p>
                 <form onSubmit={handleSubmit}>
-                  <input autoFocus className="game-input" value={input} onChange={e=>setInput(e.target.value)} placeholder="ÍRJ VALAMIT!" />
+                  <input 
+                    autoFocus 
+                    className="game-input" 
+                    value={input} 
+                    onChange={e => setInput(e.target.value)} 
+                    placeholder="ÍRJ VALAMIT!" 
+                  />
                   <button type="submit" className="btn btn-submit">KÜLDÉS 🚀</button>
                 </form>
               </div>
             ) : (
-               <div className="waiting-box">
+               <div style={{opacity: 0.7, marginTop: '20px'}}>
                  <h2>VÁRJ...</h2>
+                 <p>A másik játékos gondolkodik.</p>
                </div>
             )}
 
+            {/* Időcsík */}
             <div className="timer-bar-container">
               <div className="timer-bar" style={{ 
                 width: `${(timeLeft/maxTime)*100}%`, 
-                background: timeLeft < 5 ? '#ff0000' : '#00ff88'
+                background: timeLeft < 5 ? '#ff0055' : '#00f3ff'
               }} />
             </div>
           </div>
         )}
 
+        {/* GAME OVER */}
         {gameState === 'GAME_OVER' && (
-          <div className="interactive game-over-box">
+          <div className="interactive" style={{ background: 'rgba(0,0,0,0.85)', padding: '30px', borderRadius: '20px', border: '2px solid red' }}>
             <h1 className="bumm-text">BUMM!</h1>
-            <h2>{loser === role ? "FELROBBANTÁL! ☠️" : "MEGÚSZTAD! 🏆"}</h2>
-            {role === 'HOST' && <button onClick={hostStartGame} className="btn btn-restart">KÖVETKEZŐ KÖR</button>}
+            <h2 style={{ fontSize: '2rem', margin: '20px 0' }}>
+              {loser === role ? "VESZTETTÉL! ☠️" : "NYERTÉL! 🏆"}
+            </h2>
+            {role === 'HOST' && (
+              <button onClick={hostStartGame} className="btn btn-restart">KÖVETKEZŐ KÖR</button>
+            )}
             {role === 'CLIENT' && <p>A Host indítja az újat...</p>}
           </div>
         )}

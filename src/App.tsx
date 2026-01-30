@@ -152,7 +152,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ KRITIKUS FIX: Automatikus phase követés
+  // ✅ ATOMBIZTOS: Mindig követjük a backend phase-t, semmi okoskodás
   useEffect(() => {
     if (!roomId || view === 'MENU') return;
     
@@ -193,23 +193,11 @@ export default function App() {
           setState(data);
           setError(null);
           
-          // ✅ KRITIKUS: Automatikus view váltás a backend phase alapján
-          if (data.currentPhase && data.currentPhase !== view) {
-            // WAITING állapotból MINDIG váltson
-            if (view === 'WAITING' || view === 'WAITING_VOTE') {
-              console.log("🔄 Switching from WAITING to", data.currentPhase);
-              setView(data.currentPhase);
-            } 
-            // LOBBY → PLAYING átváltás (játék indítás)
-            else if (view === 'LOBBY' && data.currentPhase === 'PLAYING') {
-              console.log("🔄 Game starting! LOBBY → PLAYING");
-              setView('PLAYING');
-            }
-            // VOTING, PLAYING, LEADERBOARD közötti váltások
-            else if (view !== 'MENU' && view !== 'LOBBY') {
-              console.log("🔄 Auto-switching from", view, "to", data.currentPhase);
-              setView(data.currentPhase);
-            }
+          // ✅ ATOMBIZTOS LOGIKA: Ha backend phase != view, MINDIG váltunk!
+          // Kivétel CSAK a MENU, mert azt manuálisan kezeljük
+          if (data.currentPhase && data.currentPhase !== view && view !== 'MENU') {
+            console.log("🔄 AUTO-SYNC:", view, "→", data.currentPhase);
+            setView(data.currentPhase);
           }
           
           if (data.votingIndex !== undefined) {
@@ -219,7 +207,7 @@ export default function App() {
       } catch (e) {
         console.error("Sync hiba:", e);
       }
-    }, 2000);
+    }, 1000); // ✅ 1 másodperc - gyorsabb sync
     
     return () => {
       isActive = false;
@@ -382,8 +370,7 @@ export default function App() {
       
       setAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4: "" });
       
-      // ✅ HOST azonnal átkapcsol, clientek az useEffect-tel
-      setView('PLAYING');
+      // ❌ TÖRÖLVE: setView('PLAYING') - useEffect csinálja automatikusan!
     } catch (error) {
       console.error("Kör indítási hiba:", error);
     }

@@ -1,7 +1,8 @@
-// ✅ VÉGLEGES - 3 KÖRÖS RENDSZER
+// ✅ VÉGLEGES - 3 KÖRÖS RENDSZER - VOTING FIX
 // - 3 kör: mindegyik után értékelés
 // - Nincs visszadobálás, stabil flow
 // - Jobb 3D grafika
+// ✅ FIX: Automatikus VOTING átváltás működik
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
@@ -151,6 +152,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ KRITIKUS FIX: Automatikus phase követés
   useEffect(() => {
     if (!roomId || view === 'MENU') return;
     
@@ -191,9 +193,20 @@ export default function App() {
           setState(data);
           setError(null);
           
-          // ✅ JAVÍTOTT: Csak akkor változtat view-t, ha a state phase valóban más
-         
-         
+          // ✅ KRITIKUS: Automatikus view váltás a backend phase alapján
+          if (data.currentPhase && data.currentPhase !== view) {
+            // WAITING állapotból MINDIG váltson
+            if (view === 'WAITING' || view === 'WAITING_VOTE') {
+              console.log("🔄 Switching from WAITING to", data.currentPhase);
+              setView(data.currentPhase);
+            } 
+            // Más view-kból csak akkor váltson, ha értelmes
+            else if (view !== 'MENU' && view !== 'LOBBY') {
+              console.log("🔄 Auto-switching from", view, "to", data.currentPhase);
+              setView(data.currentPhase);
+            }
+          }
+          
           if (data.votingIndex !== undefined) {
             setVotingIndex(data.votingIndex);
           }
@@ -268,8 +281,8 @@ export default function App() {
         roomId: id,
         votingIndex: 0,
         votingPlayers: [],
-        currentRound: 0, // ✅ ÚJ: Kör számláló
-        totalRounds: 3,   // ✅ ÚJ: Összesen 3 kör
+        currentRound: 0,
+        totalRounds: 3,
         createdAt: new Date().toISOString()
       };
       
@@ -340,7 +353,6 @@ export default function App() {
     }
   };
 
-  // ✅ JAVÍTOTT: Első kör indítása
   const startRound = async () => {
     if (!state || role !== 'HOST') return;
     
@@ -358,7 +370,7 @@ export default function App() {
         players: updatedPlayers,
         votingPlayers: votingPlayers,
         currentPhase: 'PLAYING',
-        currentRound: 1, // ✅ 1. kör
+        currentRound: 1,
         votingIndex: 0,
         roundStarted: new Date().toISOString()
       });
@@ -369,7 +381,7 @@ export default function App() {
     }
   };
 
-  // ✅ JAVÍTOTT: Válaszok beküldése
+  // ✅ KRITIKUS FIX: Ne állítsuk a view-t manuálisan!
   const submitAnswers = async () => {
     if (!state || !myName) return;
     
@@ -389,7 +401,7 @@ export default function App() {
       const allReady = updatedPlayers.every((p: any) => p.ready);
       
       if (allReady) {
-        // ✅ KRITIKUS FIX: Ready flag-ek nullázása VOTING indításakor!
+        // ✅ Mindenki kész -> VOTING indítása
         const resetPlayers = updatedPlayers.map(p => ({ ...p, ready: false }));
         
         await postUpdate({ 
@@ -398,8 +410,9 @@ export default function App() {
           votingIndex: 0
         });
         
-        setView('VOTING');
+        // ❌ TÖRÖLVE: setView('VOTING') - Az useEffect fogja automatikusan váltani!
       } else {
+        // ✅ Még várunk másokra
         await postUpdate({ 
           players: updatedPlayers,
           currentPhase: state.currentPhase
@@ -412,7 +425,6 @@ export default function App() {
     }
   };
 
-  // ✅ JAVÍTOTT: Szavazás - 3 körös logikával
   const submitVote = async () => {
     if (!state || !state.votingPlayers || votingIndex >= state.votingPlayers.length) return;
     
@@ -442,7 +454,6 @@ export default function App() {
         const votingComplete = nextIndex >= state.votingPlayers.length;
         
         if (votingComplete) {
-          // ✅ KRITIKUS: Itt dől el, hogy új kör vagy leaderboard
           const nextRound = (state.currentRound || 0) + 1;
           const isGameOver = nextRound > (state.totalRounds || 3);
           
@@ -453,7 +464,7 @@ export default function App() {
               currentPhase: 'LEADERBOARD',
               votingIndex: 0
             });
-            setView('LEADERBOARD');
+            // ❌ setView('LEADERBOARD'); <- useEffect váltja!
           } else {
             // ✅ ÚJ KÖR KEZDŐDIK
             const newPlayers = playersWithReady.map((player: any) => ({
@@ -476,7 +487,7 @@ export default function App() {
             setAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4: "" });
             setMyVote(5);
             setVotingIndex(0);
-            setView('PLAYING');
+            // ❌ setView('PLAYING'); <- useEffect váltja!
           }
         } else {
           // ✅ Következő játékos értékelése
@@ -489,7 +500,7 @@ export default function App() {
           
           setVotingIndex(nextIndex);
           setMyVote(5);
-          setView('VOTING');
+          // ❌ setView('VOTING'); <- useEffect váltja!
         }
       } else {
         // ✅ Még nem mindenki szavazott

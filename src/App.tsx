@@ -6,121 +6,149 @@ import * as THREE from 'three';
 // === SZERVER KONFIGURÁCIÓ ===
 const BACKEND_URL = "https://trash-backend.balazsnorberttt.workers.dev";
 
-// === 1. GLOBÁLIS STÍLUSOK (MOBILRA OPTIMALIZÁLVA) ===
+// ==========================================
+// 1. GLOBÁLIS STÍLUSOK (TELJES DIZÁJN)
+// ==========================================
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@500;700;900&display=swap');
   
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { margin: 0; background: #000; overflow-x: hidden; font-family: 'Rajdhani', sans-serif; color: white; touch-action: manipulation; }
+  body { margin: 0; background: #000; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: white; touch-action: manipulation; }
+  .app-layer { position: absolute; inset: 0; display: flex; flex-direction: column; z-index: 10; overflow-y: auto; overflow-x: hidden; }
   
-  .app-layer { position: absolute; inset: 0; display: flex; flex-direction: column; z-index: 10; overflow-y: auto; overflow-x: hidden; width: 100vw; }
+  .cyber-input {
+    width: 100%; max-width: 400px; padding: 15px; background: rgba(0,0,0,0.7); border: 2px solid #ff00de;
+    color: #ffdd00; font-family: 'Rajdhani'; font-size: 1.2rem; font-weight: bold;
+    border-radius: 8px; text-align: center; outline: none; margin-top: 10px; box-sizing: border-box;
+    transition: 0.3s; text-transform: uppercase;
+  }
+  .cyber-input:focus { border-color: #00f3ff; box-shadow: 0 0 20px rgba(0, 243, 255, 0.4); }
+
+  .btn-container { width: 100%; display: flex; justify-content: center; padding: 20px; box-sizing: border-box; margin-top: 20px; }
+  .btn-action {
+    width: 100%; max-width: 400px; padding: 20px; background: linear-gradient(90deg, #ff00de, #00f3ff); 
+    color: white; font-family: 'Black Ops One'; font-size: 1.5rem; border: none; 
+    border-radius: 50px; cursor: pointer; text-transform: uppercase; 
+    box-shadow: 0 5px 30px rgba(255,0,222,0.4); text-shadow: 2px 2px 0 black;
+    transition: all 0.2s;
+  }
+  .btn-action:active { transform: scale(0.95); }
+  .btn-secondary { background: #222; border: 2px solid #444; box-shadow: none; font-size: 1.2rem; }
+
+  .container { padding: 20px; max-width: 650px; margin: 0 auto; width: 100%; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; }
+  .glass-card {
+    background: rgba(15, 10, 25, 0.9); border: 1px solid rgba(255, 0, 222, 0.3); border-radius: 16px; 
+    padding: 20px; margin-bottom: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+  }
+  .task-label { color: #00f3ff; font-weight: 900; letter-spacing: 2px; margin-bottom: 12px; text-transform: uppercase; font-size: 0.9rem; border-bottom: 1px solid #333; }
+  .highlight { color: #ff00de; font-weight: bold; text-shadow: 0 0 10px #ff00de; }
+
+  .top-bar { padding: 15px 20px; background: rgba(0,0,0,0.9); border-bottom: 2px solid #ff00de; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  .glitch-title { font-size: 3.5rem; font-family: 'Black Ops One'; line-height: 0.9; margin-bottom: 30px; text-shadow: 3px 3px 0 #ff00de, -3px -3px 0 #00f3ff; }
   
-  .container { width: 100%; max-width: 500px; margin: 0 auto; padding: 15px; display: flex; flex-direction: column; min-height: 100vh; justify-content: flex-start; }
+  .celeb-badge { background: #ff00de; color: white; padding: 8px 12px; border-radius: 6px; font-weight: 900; font-size: 0.9rem; box-shadow: 0 0 10px #ff00de; text-transform: uppercase; display: inline-block; margin: 5px 0; }
+  .casting-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+  .cast-btn { width: 100%; padding: 15px; background: rgba(255,255,255,0.05); border: 1px solid #444; color: #ccc; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: 0.2s; text-align: center; text-transform: uppercase; }
+  .cast-btn.selected { background: #00f3ff; color: black; border-color: #00f3ff; box-shadow: 0 0 20px #00f3ff; font-weight: 900; }
   
-  .cyber-input { width: 100%; padding: 12px; background: rgba(0,0,0,0.9); border: 2px solid #ff0055; color: #ffdd00; font-family: 'Rajdhani'; font-size: 1.1rem; font-weight: bold; border-radius: 8px; text-align: center; outline: none; margin: 8px 0; transition: 0.3s; text-transform: uppercase; }
-  
-  .btn-action { width: 100%; padding: 18px; background: linear-gradient(90deg, #ff0055, #6600cc); color: white; font-family: 'Black Ops One'; font-size: 1.3rem; border: none; border-radius: 50px; cursor: pointer; text-transform: uppercase; box-shadow: 0 5px 20px rgba(255,0,85,0.4); text-shadow: 1px 1px 0 black; margin: 10px 0; flex-shrink: 0; }
-  
-  .glass-card { background: rgba(20, 5, 20, 0.85); border: 1px solid rgba(255, 0, 85, 0.4); border-radius: 12px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(10px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-  
-  .task-label { color: #ff0055; font-weight: 900; letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; border-bottom: 1px solid #333; }
-  .celeb-name { color: #ff00de; font-weight: 900; font-size: 1.1rem; text-shadow: 0 0 5px #ff00de; }
-  .highlight { color: #ffdd00; font-weight: bold; }
-  
-  .top-bar { padding: 10px 15px; background: rgba(0,0,0,0.8); border-bottom: 1px solid #ff0055; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
-  
-  .lobby-list { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 15px 0; }
-  .player-pill { padding: 6px 12px; background: #222; border-radius: 20px; border: 1px solid #444; font-size: 0.9rem; }
-  
-  .vote-row { margin-top: 10px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; }
-  input[type=range] { width: 100%; accent-color: #ff0055; margin-top: 8px; }
+  .rating-box { margin-top: 15px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 12px; border: 1px dashed #ff00de; }
+  input[type=range] { width: 100%; cursor: pointer; accent-color: #ff00de; }
+  .player-pill { padding: 10px 20px; background: #111; border-radius: 30px; border: 1px solid #ff00de; font-weight: bold; margin: 5px; }
 `;
 
-// === 2. 3D VISUALS ===
-function Background3D() {
+// === 2. 3D HÁTTÉR (VÁLTOZATLAN) ===
+function FloatingDebris() {
   const mesh = useRef<THREE.InstancedMesh>(null!);
   const count = 40;
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particles = useMemo(() => {
     return Array.from({ length: count }, () => ({
-      pos: [(Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*40],
-      speed: Math.random() * 0.01,
-      scale: 0.2 + Math.random() * 0.8
+      x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60, z: (Math.random() - 0.5) * 60,
+      rotSpeed: Math.random() * 0.02, scale: 0.5 + Math.random()
     }));
   }, []);
 
-  useFrame((state) => {
+  useFrame(() => {
+    if (!mesh.current) return;
     particles.forEach((p, i) => {
-      dummy.position.set(p.pos[0], p.pos[1], p.pos[2]);
-      dummy.rotation.y += p.speed;
-      dummy.scale.setScalar(p.scale);
-      dummy.updateMatrix();
+      dummy.position.set(p.x, p.y, p.z); dummy.rotation.x += p.rotSpeed; 
+      dummy.scale.setScalar(p.scale); dummy.updateMatrix(); 
       mesh.current.setMatrixAt(i, dummy.matrix);
     });
     mesh.current.instanceMatrix.needsUpdate = true;
-    mesh.current.rotation.y = state.clock.elapsedTime * 0.05;
   });
 
   return (
     <instancedMesh ref={mesh} args={[undefined, undefined, count]}>
-      <dodecahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial color="#ff0055" wireframe />
+      <icosahedronGeometry args={[1, 0]} />
+      <meshStandardMaterial color="#ff00de" wireframe />
     </instancedMesh>
   );
 }
 
-// === 3. TRASH CONTENT DATABASE ===
-const CELEBS = ["Tóth Gabi", "Alekosz", "Varga Irén", "Berki szelleme", "Győzike", "Orbán Viktor", "Pumped Gabo", "PSG Ogli", "Zámbó Jimmy", "Kiszel Tünde", "G.w.M", "Szabyest"];
-const SCENARIOS = [
+// === 3. ÓRIÁS TRASH ADATBÁZIS (VISSZARAKVA MINDEN) ===
+const TRASH_CELEBS = ["Tóth Gabi", "Alekosz", "Varga Irén", "Berki szelleme", "Győzike", "Orbán Viktor", "Pumped Gabo", "PSG Ogli", "Zámbó Jimmy", "Kiszel Tünde", "G.w.M", "Szabyest", "Deutsch Tamás", "Varga Judit", "Lakatos Brendon", "Gyurcsány Ferenc", "Németh Szilárd"];
+const SITUATION_TEMPLATES = [
   "A Blahán {WHO} éppen ...-t csinál a szökőkútban.",
-  "A Parlament közepén {WHO} ...-al keni be magát meztelenül.",
-  "A ravatalozóban {WHO} elejtett egy ...-t a koporsóba.",
-  "A szülőszobán {WHO} ...-t akart adni az újszülöttnek.",
-  "Az OnlyFans oldalán {WHO} ...-t dugott a fülébe."
+  "A Parlamentben {WHO} ...-al keni be magát meztelenül az oltár előtt.",
+  "A ravatalozóban {WHO} véletlenül elejtett egy ...-t a koporsóba.",
+  "Az OnlyFans oldalán {WHO} éppen egy ...-t dugott a fülébe.",
+  "A Híradóban bemondták, hogy {WHO} otthonában egy óriási ...-t találtak.",
+  "A Sziget fesztiválon {WHO} a toi-toi vécéből ...-t dobált a tömegbe."
 ];
-const CHALLENGES = ["Maszturbálás közben ezt kiabáltad:", "A proktológus benyúlt, ezt súgtad neki:", "Ezt írnád a sírkövedre:", "Mit mondanál, ha Orbán Viktor meztelenül kopogna nálad?"];
-const OBJECTS = ["Hüvelygomba", "Pacalpörkölt", "Használt óvszer", "Szájer eresze", "Végbélkúp", "Kőbányai sör", "Fityma", "Disznósajt"];
+const QUESTIONS = [
+  "Maszturbálás közben véletlenül ezt kiabáltad ki az ablakon:", 
+  "A proktológus benyúlt, ezt súgtad oda neki halkan:", 
+  "Ezt írnád a saját sírkövedre utolsó üzenetként:",
+  "Mit mondanál, ha Orbán Viktor meztelenül kopogna nálad éjfélkor?",
+  "Mit súgnál Putyin fülébe, ha te lennél a tolmácsa?"
+];
+const ROLES = ["Aki titokban lábképeket árul az interneten", "Aki titokban szerelmes Németh Szilárdba", "Akinek a böngészési előzményeiért börtön járna", "Aki biztosan sírva fakad szex közben", "Aki simán lefeküdne egy állattal pénzért"];
+const LETTERS = ["A", "B", "D", "E", "F", "G", "H", "K", "L", "M", "N", "P", "R", "S", "T", "V", "Z"];
 
 const generateTasks = () => {
-  const rand = (a: any[]) => a[Math.floor(Math.random() * a.length)];
+  const rand = (a: any[]): any => a[Math.floor(Math.random() * a.length)];
+  const getLetters = () => `${rand(LETTERS)} - ${rand(LETTERS)} - ${rand(LETTERS)}`;
   return {
-    t1: SCENARIOS[Math.floor(Math.random()*SCENARIOS.length)].replace("{WHO}", `<span class="celeb-name">${rand(CELEBS)}</span>`),
-    t2: rand(CHALLENGES),
-    t3: { s: rand(CELEBS), t: rand(CELEBS) },
-    t4: { word: rand(OBJECTS), letters: ["A", "B", "C"] }
+    t1: { text: rand(SITUATION_TEMPLATES).replace("{WHO}", `<span class="highlight">${rand(TRASH_CELEBS)}</span>`), letters: getLetters() },
+    t2: { text: rand(QUESTIONS), letters: getLetters() },
+    t3: { celebs: [rand(TRASH_CELEBS), rand(TRASH_CELEBS), rand(TRASH_CELEBS)] },
+    t4: { role: rand(ROLES), options: [rand(TRASH_CELEBS), rand(TRASH_CELEBS), rand(TRASH_CELEBS)] }
   };
 };
 
-// === 4. JÁTÉK MOTOR ===
+// === 4. FŐ ALKALMAZÁS (SZERVERRE ÁTÍRVA) ===
 export default function App() {
   const [view, setView] = useState('MENU');
+  const [role, setRole] = useState<'HOST' | 'CLIENT' | null>(null);
   const [roomId, setRoomId] = useState('');
   const [myName, setMyName] = useState('');
   const [state, setState] = useState<any>(null);
-  const [answers, setAnswers] = useState<any>({ t1: "", t2: "", t3_1: "", t3_2: "", t4_1: "", t4_2: "", t4_3: "" });
-  const [myVotes, setMyVotes] = useState<any>({ t1: 5, t2: 5, t3: 5, t4: 5 });
+  const [answers, setAnswers] = useState<any>({ t1: "", t2: "", t3_1: "", t3_2: "", t4: null });
+  const [myVote, setMyVote] = useState(5);
+  const [votingIndex, setVotingIndex] = useState(0);
 
-  // Szinkronizáció a Cloudflare-rel
   useEffect(() => {
     if (!roomId || view === 'MENU') return;
-    const interval = setInterval(async () => {
+    const sync = setInterval(async () => {
       try {
         const res = await fetch(`${BACKEND_URL}?roomId=${roomId}`);
         const data = await res.json();
         if (data && !data.error) {
           setState(data);
           if (data.currentPhase !== view) setView(data.currentPhase);
+          if (data.votingIndex !== undefined) setVotingIndex(data.votingIndex);
         }
-      } catch (e) { console.error("Szerver hiba..."); }
-    }, 2500);
-    return () => clearInterval(interval);
+      } catch (e) { console.error("Sync hiba..."); }
+    }, 2000);
+    return () => clearInterval(sync);
   }, [roomId, view]);
 
-  const postUpdate = async (update: any) => {
+  const postUpdate = async (payload: any) => {
     await fetch(`${BACKEND_URL}?roomId=${roomId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(update)
+      body: JSON.stringify(payload)
     });
   };
 
@@ -128,158 +156,152 @@ export default function App() {
     if (!myName) return alert("Név!");
     const id = Math.floor(1000 + Math.random() * 9000).toString();
     const init = { players: [{ name: myName, score: 0, answers: null, tasks: null, ready: false }], currentPhase: 'LOBBY' };
-    setRoomId(id);
+    setRoomId(id); setRole('HOST');
     await postUpdate(init);
     setView('LOBBY');
   };
 
   const joinRoom = async () => {
-    if (!roomId || !myName) return alert("Kód és név!");
+    if (!roomId || !myName) return alert("Kód és Név!");
     const res = await fetch(`${BACKEND_URL}?roomId=${roomId}`);
     const data = await res.json();
-    if (data.error) return alert("Nincs ilyen szoba!");
+    if (data.error) return alert("Nincs szoba!");
     const updated = [...data.players, { name: myName, score: 0, answers: null, tasks: null, ready: false }];
+    setRole('CLIENT');
     await postUpdate({ players: updated });
     setView('LOBBY');
   };
 
   const startRound = async () => {
     const updated = state.players.map((p: any) => ({ ...p, tasks: generateTasks(), answers: null, ready: false }));
-    await postUpdate({ players: updated, currentPhase: 'PLAYING' });
+    await postUpdate({ players: updated, currentPhase: 'PLAYING', votingIndex: 0 });
   };
 
-  const finishAnswers = async () => {
+  // JAVÍTÁS: A gombod submitAnswers-t hív, ezért ezt a nevet adjuk neki
+  const submitAnswers = async () => {
     const updated = state.players.map((p: any) => p.name === myName ? { ...p, answers: answers, ready: true } : p);
     const allReady = updated.every((p: any) => p.ready);
     await postUpdate({ players: updated, currentPhase: allReady ? 'VOTING' : 'PLAYING' });
     setView('WAITING');
   };
 
-  // Ki az, akit én értékelek? (Körbe-értékelés)
-  const getTarget = () => {
-    if (!state) return null;
-    const sorted = [...state.players].sort((a,b) => a.name.localeCompare(b.name));
-    const idx = sorted.findIndex((p: any) => p.name === myName);
-    return sorted[(idx + 1) % sorted.length];
-  };
-
-  const submitVotes = async () => {
-    const target = getTarget();
-    const total = Object.values(myVotes).reduce((a: any, b: any) => parseInt(a) + parseInt(b), 0);
+  const submitVote = async () => {
+    const target = state.players[votingIndex];
     const updated = state.players.map((p: any) => {
       let mod = { ...p };
-      if (p.name === target.name) mod.score += total;
+      if (p.name === target.name) mod.score += myVote;
       if (p.name === myName) mod.ready = true;
       return mod;
     });
-    const allDone = updated.every((p: any) => p.ready);
-    await postUpdate({ players: updated, currentPhase: allDone ? 'RESULTS' : 'VOTING' });
-    setView('WAITING');
+    const allVoted = updated.every((p: any) => p.ready);
+    if (allVoted) {
+      const nextIdx = votingIndex + 1;
+      const isOver = nextIdx >= state.players.length;
+      const resetReady = updated.map(p => ({ ...p, ready: false }));
+      await postUpdate({ players: resetReady, currentPhase: isOver ? 'LEADERBOARD' : 'VOTING', votingIndex: isOver ? 0 : nextIdx });
+    } else {
+      await postUpdate({ players: updated });
+      setView('WAITING_VOTE');
+    }
   };
+
+  const myPlayer = state?.players.find((p: any) => p.name === myName);
+  const targetPlayer = state?.players[votingIndex];
 
   return (
     <>
       <style>{GLOBAL_CSS}</style>
       <div className="app-layer">
         <div style={{position:'absolute', inset:0, zIndex:-1}}>
-          <Canvas><PerspectiveCamera makeDefault position={[0,0,20]} /><ambientLight intensity={0.5} /><Stars /><Float><Background3D /></Float></Canvas>
+          <Canvas><Stars radius={100} count={5000} factor={4} /><ambientLight intensity={0.5} /><pointLight position={[10,10,10]} color="#00f3ff" /><Float><FloatingDebris /></Float></Canvas>
         </div>
 
         {view === 'MENU' && (
-          <div className="container" style={{justifyContent:'center'}}>
-            <h1 style={{fontFamily:'Black Ops One', fontSize:'3.5rem', textAlign:'center', textShadow:'0 0 15px #ff0055', margin:0}}>TRASH<br/>UNIVERSE</h1>
-            <div className="glass-card" style={{marginTop:'30px'}}>
-              <input className="cyber-input" placeholder="NEVED" value={myName} onChange={e=>setMyName(e.target.value)} />
-              <button className="btn-action" onClick={createRoom}>ÚJ SZOBA</button>
-              <div style={{height:'1px', background:'#444', margin:'15px 0'}} />
-              <input className="cyber-input" placeholder="SZOBA KÓD" value={roomId} onChange={e=>setRoomId(e.target.value)} />
-              <button className="btn-action" style={{background:'#222'}} onClick={joinRoom}>CSATLAKOZÁS</button>
-            </div>
+          <div className="menu">
+            <h1 className="glitch-title">TRASH<br/>UNIVERSE</h1>
+            <input className="cyber-input" placeholder="NEVED" value={myName} onChange={e=>setMyName(e.target.value)} />
+            <div className="btn-container"><button className="btn-action" onClick={createRoom}>ÚJ SZOBA</button></div>
+            <input className="cyber-input" placeholder="SZOBA KÓD" value={roomId} onChange={e=>setRoomId(e.target.value)} />
+            <div className="btn-container"><button className="btn-action btn-secondary" onClick={joinRoom}>CSATLAKOZÁS</button></div>
           </div>
         )}
 
         {view === 'LOBBY' && (
-          <div className="container">
-            <h1 style={{textAlign:'center', fontSize:'2.5rem', margin:'10px 0'}}>SZOBA: {roomId}</h1>
-            <div className="glass-card">
-              <div className="task-label">Váróterem:</div>
-              <div className="lobby-list">{state?.players.map((p: any) => <div key={p.name} className="player-pill" style={{borderColor: p.name===myName?'#ff0055':'#444'}}>{p.name}</div>)}</div>
-            </div>
-            {state?.players[0].name === myName && state?.players.length > 1 && (
-              <button className="btn-action" onClick={startRound}>JÁTÉK INDÍTÁSA</button>
-            )}
-            <p style={{textAlign:'center', color:'#888'}}>Várj a Host indítására...</p>
+          <div className="menu">
+            <h1 className="glitch-title" style={{fontSize:'3rem'}}>SZOBA: {roomId}</h1>
+            <div className="lobby-list">{state?.players.map((p: any) => <div key={p.name} className="player-pill">{p.name}</div>)}</div>
+            {role === 'HOST' && <button className="btn-action" onClick={startRound}>JÁTÉK INDÍTÁSA</button>}
           </div>
         )}
 
-        {view === 'PLAYING' && (
+        {view === 'PLAYING' && myPlayer?.tasks && (
           <div className="container">
-            <div className="top-bar"><span>{myName}</span><span style={{color:'#ff0055'}}>SZOBA: {roomId}</span></div>
-            
+            <div className="top-bar"><div>{myName}</div><div>KÓD: {roomId}</div></div>
             <div className="glass-card">
-              <div className="task-label">1. SZITUÁCIÓ (Egészítsd ki!)</div>
-              <div style={{fontSize:'1.1rem', marginBottom:'10px'}} dangerouslySetInnerHTML={{__html: state?.players.find((p:any)=>p.name===myName).tasks.t1.replace("...", "_______")}} />
-              <input className="cyber-input" placeholder="Írd be a legdurvábbat..." value={answers.t1} onChange={e=>setAnswers({...answers, t1:e.target.value})} />
+              <div className="task-label">1. SZITUÁCIÓ</div>
+              <div dangerouslySetInnerHTML={{__html: myPlayer.tasks.t1.text.replace("...", "_______")}} />
+              <div style={{color:'#ffdd00', fontSize:'0.8rem', marginTop:'5px'}}>BETŰK: {myPlayer.tasks.t1.letters}</div>
+              <input className="cyber-input" value={answers.t1} onChange={e=>setAnswers({...answers, t1: e.target.value})} />
             </div>
-
             <div className="glass-card">
-              <div className="task-label">2. KÍN-PAD (Vallomás)</div>
-              <div style={{fontSize:'1.1rem', marginBottom:'10px'}}>{state?.players.find((p:any)=>p.name===myName).tasks.t2}</div>
-              <input className="cyber-input" placeholder="Válasz..." value={answers.t2} onChange={e=>setAnswers({...answers, t2:e.target.value})} />
+              <div className="task-label">2. KÍN-PAD</div>
+              <div>{myPlayer.tasks.t2.text}</div>
+              <div style={{color:'#ffdd00', fontSize:'0.8rem', marginTop:'5px'}}>BETŰK: {myPlayer.tasks.t2.letters}</div>
+              <input className="cyber-input" value={answers.t2} onChange={e=>setAnswers({...answers, t2: e.target.value})} />
             </div>
-
-            <button className="btn-action" onClick={finishAnswers}>KÉSZ VAGYOK</button>
+            <div className="glass-card">
+              <div className="task-label">3. SZTORILÁNC</div>
+              <div className="story-container">
+                <div className="celeb-badge">{myPlayer.tasks.t3.celebs[0]}</div>
+                <input className="cyber-input" style={{marginTop:0}} placeholder="Mit tett vele?" value={answers.t3_1} onChange={e=>setAnswers({...answers, t3_1: e.target.value})} />
+                <div className="celeb-badge" style={{background:'#00f3ff', color:'black'}}>{myPlayer.tasks.t3.celebs[1]}</div>
+                <input className="cyber-input" style={{marginTop:0}} placeholder="Hogy végződött?" value={answers.t3_2} onChange={e=>setAnswers({...answers, t3_2: e.target.value})} />
+                <div className="celeb-badge" style={{background:'#ffdd00', color:'black'}}>{myPlayer.tasks.t3.celebs[2]}</div>
+              </div>
+            </div>
+            <div className="glass-card">
+              <div className="task-label">4. CASTING: {myPlayer.tasks.t4.role}</div>
+              <div className="casting-grid">
+                {myPlayer.tasks.t4.options.map((opt: string, i: number) => (
+                  <button key={i} className={`cast-btn ${answers.t4 === i ? 'selected' : ''}`} onClick={()=>setAnswers({...answers, t4: i})}>{opt}</button>
+                ))}
+              </div>
+            </div>
+            <button className="btn-action" onClick={submitAnswers}>BEKÜLDÉS</button>
           </div>
         )}
 
-        {view === 'VOTING' && (
+        {view === 'VOTING' && targetPlayer && (
           <div className="container">
-            <h2 style={{textAlign:'center', color:'#ff0055', margin:'10px 0'}}>ÉRTÉKELD: {getTarget()?.name}</h2>
-            
+            <h1 style={{textAlign:'center', color:'#ff00de'}}>{targetPlayer.name} VÁLASZAI</h1>
             <div className="glass-card">
               <div className="task-label">SZITUÁCIÓ VÁLASZA:</div>
-              <div style={{fontSize:'1.2rem', color:'#ffdd00', padding:'10px 0'}}>{getTarget()?.answers.t1}</div>
-              <div className="vote-row">
-                <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem'}}><span>SZÁNALMAS</span><span>{myVotes.t1}</span><span>ZSENIÁLIS</span></div>
-                <input type="range" min="1" max="10" value={myVotes.t1} onChange={e=>setMyVotes({...myVotes, t1:e.target.value})} />
-              </div>
+              <div style={{color:'#ffdd00', fontSize:'1.3rem'}}>{targetPlayer.answers?.t1 || "-(Üres)-"}</div>
             </div>
-
             <div className="glass-card">
-              <div className="task-label">VALLOMÁS VÁLASZA:</div>
-              <div style={{fontSize:'1.2rem', color:'#ffdd00', padding:'10px 0'}}>{getTarget()?.answers.t2}</div>
-              <div className="vote-row">
-                <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem'}}><span>UNALMAS</span><span>{myVotes.t2}</span><span>BETEG</span></div>
-                <input type="range" min="1" max="10" value={myVotes.t2} onChange={e=>setMyVotes({...myVotes, t2:e.target.value})} />
-              </div>
+              <div className="task-label">VALLOMÁS:</div>
+              <div style={{color:'#ffdd00', fontSize:'1.3rem'}}>{targetPlayer.answers?.t2 || "-(Üres)-"}</div>
             </div>
-
-            <button className="btn-action" onClick={submitVotes}>SZAVAZATOK BEKÜLDÉSE</button>
+            {targetPlayer.name !== myName ? (
+              <div className="rating-box">
+                <div style={{textAlign:'center', fontWeight:'bold', color:'#00f3ff'}}>TRASH SZINT: {myVote}</div>
+                <input type="range" min="1" max="10" value={myVote} onChange={e=>setMyVote(parseInt(e.target.value))} />
+                <button className="btn-action" style={{marginTop:'20px'}} onClick={submitVote}>SZAVAZOK</button>
+              </div>
+            ) : <div className="glass-card" style={{textAlign:'center'}}>Most a többiek téged pontoznak...</div>}
           </div>
         )}
 
-        {(view === 'WAITING' || view === 'WAITING_VOTE') && (
-          <div className="container" style={{justifyContent:'center', alignItems:'center'}}>
-            <div style={{fontSize:'4rem', animation:'pulse 1.5s infinite'}}>⏳</div>
-            <h2>VÁRAKOZÁS A TÖBBIEKRE...</h2>
-            <p>{state?.players.filter((p:any)=>p.ready).length} / {state?.players.length} játékos kész</p>
-          </div>
-        )}
-
-        {view === 'RESULTS' && (
+        {view === 'LEADERBOARD' && (
           <div className="container">
-            <h1 style={{textAlign:'center', fontSize:'3rem', textShadow:'0 0 10px #00f3ff'}}>EREDMÉNY</h1>
-            <div className="glass-card">
-              {state?.players.sort((a:any,b:any)=>b.score - a.score).map((p:any, i:number) => (
-                <div key={p.name} style={{display:'flex', justifyContent:'space-between', padding:'12px', borderBottom: i===state.players.length-1?'none':'1px solid #333', fontSize:'1.3rem'}}>
-                  <span>{i===0?'👑':''} {p.name}</span>
-                  <span style={{color:'#ff0055', fontWeight:'bold'}}>{p.score} PT</span>
-                </div>
-              ))}
-            </div>
-            {state?.players[0].name === myName && (
-              <button className="btn-action" onClick={startRound}>ÚJ KÖR INDÍTÁSA</button>
-            )}
+            <h1 className="glitch-title" style={{textAlign:'center'}}>EREDMÉNY</h1>
+            {state?.players.sort((a:any,b:any)=>b.score - a.score).map((p:any, i:number) => (
+              <div key={p.name} className="glass-card" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div style={{fontSize:'1.5rem'}}>#{i+1} {p.name}</div>
+                <div style={{fontSize:'2rem', color:'#00f3ff'}}>{p.score}</div>
+              </div>
+            ))}
+            {role === 'HOST' && <button className="btn-action" onClick={startRound}>ÚJ KÖR</button>}
           </div>
         )}
       </div>

@@ -200,7 +200,12 @@ export default function App() {
               console.log("🔄 Switching from WAITING to", data.currentPhase);
               setView(data.currentPhase);
             } 
-            // Más view-kból csak akkor váltson, ha értelmes
+            // LOBBY → PLAYING átváltás (játék indítás)
+            else if (view === 'LOBBY' && data.currentPhase === 'PLAYING') {
+              console.log("🔄 Game starting! LOBBY → PLAYING");
+              setView('PLAYING');
+            }
+            // VOTING, PLAYING, LEADERBOARD közötti váltások
             else if (view !== 'MENU' && view !== 'LOBBY') {
               console.log("🔄 Auto-switching from", view, "to", data.currentPhase);
               setView(data.currentPhase);
@@ -376,6 +381,9 @@ export default function App() {
       });
       
       setAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4: "" });
+      
+      // ✅ HOST azonnal átkapcsol, clientek az useEffect-tel
+      setView('PLAYING');
     } catch (error) {
       console.error("Kör indítási hiba:", error);
     }

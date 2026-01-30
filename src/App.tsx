@@ -1,8 +1,8 @@
-// ✅ VÉGLEGES - 3 KÖRÖS RENDSZER - VOTING FIX
-// - 3 kör: mindegyik után értékelés
-// - Nincs visszadobálás, stabil flow
-// - Jobb 3D grafika
-// ✅ FIX: Automatikus VOTING átváltás működik
+// ✅ VÉGLEGES - TISZTA LOGIKA
+// 1. Mindenki válaszol → ready = true
+// 2. Ha mindenki ready → VOTING indítás + ready = false
+// 3. Mindenki szavaz → ready = true
+// 4. Ha mindenki ready → következő játékos VAGY új kör VAGY vége
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
@@ -30,7 +30,6 @@ const GLOBAL_CSS = `
   @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } }
 `;
 
-// ✅ JAVÍTOTT 3D - Több elem, jobb vizuális
 function CyberSphere({ position }: any) {
   const meshRef = useRef<THREE.Mesh>(null!);
   useFrame((state) => {
@@ -152,7 +151,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ ATOMBIZTOS: Mindig követjük a backend phase-t, semmi okoskodás
+  // ✅ TISZTA SYNC LOGIKA
   useEffect(() => {
     if (!roomId || view === 'MENU') return;
     
@@ -163,40 +162,18 @@ export default function App() {
       
       try {
         const res = await fetch(`${BACKEND_URL}?roomId=${roomId}`);
-        
-        if (!res.ok) {
-          if (res.status === 404 && view !== 'LOBBY') {
-            try {
-              const errorData = await res.json();
-              if (errorData?.error === "Nincs szoba") {
-                setError("A szoba lejárt vagy törölve lett");
-                setView('MENU');
-              }
-            } catch (e) {
-              console.log("404 parse hiba");
-            }
-          }
-          return;
-        }
+        if (!res.ok) return;
         
         const data = await res.json();
+        if (!data || data.error) return;
         
-        if (data && data.error) {
-          if (data.error === "Nincs szoba" && view !== 'MENU' && view !== 'LOBBY') {
-            setError("A szoba lejárt vagy törölve lett");
-            setView('MENU');
-          }
-          return;
-        }
-        
-        if (isActive && data && !data.error) {
+        if (isActive) {
           setState(data);
           setError(null);
           
-          // ✅ ATOMBIZTOS LOGIKA: Ha backend phase != view, MINDIG váltunk!
-          // Kivétel CSAK a MENU, mert azt manuálisan kezeljük
+          // ✅ EGYSZERŰ: Mindig követjük a backend phase-t (kivéve MENU)
           if (data.currentPhase && data.currentPhase !== view && view !== 'MENU') {
-            console.log("🔄 AUTO-SYNC:", view, "→", data.currentPhase);
+            console.log("🔄 SYNC:", view, "→", data.currentPhase);
             setView(data.currentPhase);
           }
           
@@ -205,9 +182,9 @@ export default function App() {
           }
         }
       } catch (e) {
-        console.error("Sync hiba:", e);
+        console.error("Sync error:", e);
       }
-    }, 1000); // ✅ 1 másodperc - gyorsabb sync
+    }, 1000);
     
     return () => {
       isActive = false;
@@ -217,31 +194,24 @@ export default function App() {
 
   const postUpdate = async (update: any, customRoomId?: string) => {
     setLoading(true);
-    setError(null);
-    
-    const targetId = customRoomId || roomId;
-
     try {
-      const payload = { roomId: targetId, ...update };
-      
+      const targetId = customRoomId || roomId;
       const response = await fetch(`${BACKEND_URL}?roomId=${targetId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ roomId: targetId, ...update })
       });
       
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
       const data = await response.json();
       
       if (data && !data.error) {
-        setState(prev => ({ ...prev, ...data }));
+        setState(data);
       }
-      
       return data;
     } catch (error: any) {
-      console.error("Update hiba:", error);
-      setError(error.message || "Ismeretlen hiba");
+      console.error("Update error:", error);
+      setError(error.message);
       throw error;
     } finally {
       setLoading(false);
@@ -249,27 +219,19 @@ export default function App() {
   };
 
   const createRoom = async () => {
-    if (!myName.trim()) {
-      alert("Add meg a neved!");
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
+    if (!myName.trim()) return alert("Add meg a neved!");
     
     try {
       const id = Math.floor(1000 + Math.random() * 9000).toString();
-      const newPlayer = {
-        name: myName,
-        score: 0,
-        answers: null,
-        tasks: null,
-        ready: false,
-        isHost: true
-      };
-      
       const initialState = {
-        players: [newPlayer],
+        players: [{
+          name: myName,
+          score: 0,
+          answers: null,
+          tasks: null,
+          ready: false,
+          isHost: true
+        }],
         currentPhase: 'LOBBY',
         roomId: id,
         votingIndex: 0,
@@ -279,47 +241,26 @@ export default function App() {
         createdAt: new Date().toISOString()
       };
       
-      const result = await postUpdate(initialState, id);
-      
-      if (result && !result.error) {
-        setRoomId(id);
-        setRole('HOST');
-        setState(initialState);
-        setView('LOBBY');
-      } else {
-        setError("Nem sikerült létrehozni a szobát");
-      }
+      await postUpdate(initialState, id);
+      setRoomId(id);
+      setRole('HOST');
+      setView('LOBBY');
     } catch (error) {
-      console.error("Szoba létrehozási hiba:", error);
-      setError("Hiba a szoba létrehozásakor");
-    } finally {
-      setLoading(false);
+      console.error("Create room error:", error);
     }
   };
 
   const joinRoom = async () => {
-    if (!roomId.trim() || !myName.trim()) {
-      alert("Add meg a szoba kódot és a neved!");
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
+    if (!roomId.trim() || !myName.trim()) return alert("Add meg a szoba kódot és a neved!");
     
     try {
       const res = await fetch(`${BACKEND_URL}?roomId=${roomId}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) return alert("Nincs ilyen szoba!");
       
       const data = await res.json();
-      
-      if (data && data.error) {
-        alert("Nincs ilyen szoba!");
-        return;
-      }
-      
-      if (data.players && data.players.some((p: any) => p.name === myName)) {
-        alert("Ez a név már foglalt ebben a szobában!");
-        return;
+      if (data.error) return alert("Nincs ilyen szoba!");
+      if (data.players?.some((p: any) => p.name === myName)) {
+        return alert("Ez a név már foglalt!");
       }
       
       const newPlayer = {
@@ -331,18 +272,11 @@ export default function App() {
         isHost: false
       };
       
-      const updatedPlayers = [...(data.players || []), newPlayer];
-      const updateResult = await postUpdate({ players: updatedPlayers });
-      
-      if (updateResult && !updateResult.error) {
-        setRole('CLIENT');
-        setView('LOBBY');
-      }
-    } catch (error: any) {
-      console.error("Csatlakozási hiba:", error);
-      alert(`Hiba a csatlakozásnál: ${error.message}`);
-    } finally {
-      setLoading(false);
+      await postUpdate({ players: [...(data.players || []), newPlayer] });
+      setRole('CLIENT');
+      setView('LOBBY');
+    } catch (error) {
+      alert("Hiba a csatlakozásnál!");
     }
   };
 
@@ -354,126 +288,119 @@ export default function App() {
         ...player,
         tasks: generateTasks(),
         answers: null,
-        ready: false
+        ready: false // ✅ NULLÁZÁS
       }));
-      
-      const votingPlayers = getVotingPlayers(updatedPlayers);
       
       await postUpdate({ 
         players: updatedPlayers,
-        votingPlayers: votingPlayers,
+        votingPlayers: getVotingPlayers(updatedPlayers),
         currentPhase: 'PLAYING',
-        currentRound: 1,
-        votingIndex: 0,
-        roundStarted: new Date().toISOString()
+        currentRound: (state.currentRound || 0) + 1,
+        votingIndex: 0
       });
       
       setAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4: "" });
-      
-      // ❌ TÖRÖLVE: setView('PLAYING') - useEffect csinálja automatikusan!
     } catch (error) {
-      console.error("Kör indítási hiba:", error);
+      console.error("Start round error:", error);
     }
   };
 
-  // ✅ KRITIKUS FIX: Ne állítsuk a view-t manuálisan!
+  // ✅ TISZTA VÁLASZ LOGIKA
   const submitAnswers = async () => {
     if (!state || !myName) return;
     
+    console.log("📝 Submitting answers...");
+    
     try {
-      const updatedPlayers = state.players.map((player: any) => {
-        if (player.name === myName) {
-          return {
-            ...player,
-            answers: answers,
-            ready: true,
-            submittedAt: new Date().toISOString()
-          };
-        }
-        return player;
-      });
+      // 1️⃣ Saját ready flag állítása
+      const updatedPlayers = state.players.map((p: any) => 
+        p.name === myName 
+          ? { ...p, answers: answers, ready: true }
+          : p
+      );
       
+      // 2️⃣ Ellenőrzés: mindenki ready?
       const allReady = updatedPlayers.every((p: any) => p.ready);
       
+      console.log("✅ All ready?", allReady);
+      
       if (allReady) {
-        // ✅ Mindenki kész -> VOTING indítása
-        const resetPlayers = updatedPlayers.map(p => ({ ...p, ready: false }));
+        // 3️⃣ HA MINDENKI READY → VOTING + READY NULLÁZÁS
+        const playersForVoting = updatedPlayers.map(p => ({ ...p, ready: false }));
         
-        await postUpdate({ 
-          players: resetPlayers,
+        await postUpdate({
+          players: playersForVoting,
           currentPhase: 'VOTING',
           votingIndex: 0
         });
         
-        // ❌ TÖRÖLVE: setView('VOTING') - Az useEffect fogja automatikusan váltani!
+        console.log("🎯 Started VOTING");
       } else {
-        // ✅ Még várunk másokra
-        await postUpdate({ 
-          players: updatedPlayers,
-          currentPhase: state.currentPhase
-        });
-        
+        // 4️⃣ MÉG NEM MINDENKI → csak frissítés
+        await postUpdate({ players: updatedPlayers });
         setView('WAITING');
+        console.log("⏳ Waiting for others...");
       }
     } catch (error) {
-      console.error("Válasz beküldési hiba:", error);
+      console.error("Submit answers error:", error);
     }
   };
 
+  // ✅ TISZTA SZAVAZÁS LOGIKA
   const submitVote = async () => {
     if (!state || !state.votingPlayers || votingIndex >= state.votingPlayers.length) return;
+    
+    console.log("🗳️ Submitting vote...");
     
     try {
       const targetPlayer = state.votingPlayers[votingIndex];
       const isDoubleWeighted = needsDoubleWeight(state.votingPlayers, votingIndex);
       const actualPoints = isDoubleWeighted ? myVote * 2 : myVote;
       
-      const updatedPlayers = state.players.map((player: any) => {
-        if (player.name === targetPlayer.name) {
-          return { ...player, score: (player.score || 0) + actualPoints };
+      // 1️⃣ Pontok hozzáadása + ready flag
+      const updatedPlayers = state.players.map((p: any) => {
+        if (p.name === targetPlayer.name) {
+          return { ...p, score: (p.score || 0) + actualPoints };
         }
-        return player;
+        if (p.name === myName) {
+          return { ...p, ready: true };
+        }
+        return p;
       });
       
-      const playersWithReady = updatedPlayers.map((player: any) => {
-        if (player.name === myName) {
-          return { ...player, ready: true };
-        }
-        return player;
-      });
+      // 2️⃣ Mindenki szavazott?
+      const allVoted = updatedPlayers.every((p: any) => p.ready);
       
-      const allVoted = playersWithReady.every((p: any) => p.ready);
+      console.log("✅ All voted?", allVoted);
       
       if (allVoted) {
         const nextIndex = votingIndex + 1;
         const votingComplete = nextIndex >= state.votingPlayers.length;
         
         if (votingComplete) {
-          const nextRound = (state.currentRound || 0) + 1;
-          const isGameOver = nextRound > (state.totalRounds || 3);
+          // 3️⃣ VOTING VÉGE
+          const nextRound = state.currentRound + 1;
+          const isGameOver = nextRound > state.totalRounds;
           
           if (isGameOver) {
-            // ✅ JÁTÉK VÉGE
+            // 🏆 JÁTÉK VÉGE
             await postUpdate({
-              players: playersWithReady.map(p => ({ ...p, ready: false })),
-              currentPhase: 'LEADERBOARD',
-              votingIndex: 0
+              players: updatedPlayers.map(p => ({ ...p, ready: false })),
+              currentPhase: 'LEADERBOARD'
             });
-            // ❌ setView('LEADERBOARD'); <- useEffect váltja!
+            console.log("🏆 Game over!");
           } else {
-            // ✅ ÚJ KÖR KEZDŐDIK
-            const newPlayers = playersWithReady.map((player: any) => ({
-              ...player,
+            // 🔄 ÚJ KÖR
+            const newPlayers = updatedPlayers.map((p: any) => ({
+              ...p,
               tasks: generateTasks(),
               answers: null,
               ready: false
             }));
             
-            const newVotingPlayers = getVotingPlayers(newPlayers);
-            
             await postUpdate({
               players: newPlayers,
-              votingPlayers: newVotingPlayers,
+              votingPlayers: getVotingPlayers(newPlayers),
               currentPhase: 'PLAYING',
               currentRound: nextRound,
               votingIndex: 0
@@ -481,29 +408,26 @@ export default function App() {
             
             setAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4: "" });
             setMyVote(5);
-            setVotingIndex(0);
-            // ❌ setView('PLAYING'); <- useEffect váltja!
+            console.log("🔄 New round started!");
           }
         } else {
-          // ✅ Következő játékos értékelése
-          const resetPlayers = playersWithReady.map(p => ({ ...p, ready: false }));
-          
+          // 4️⃣ KÖVETKEZŐ JÁTÉKOS
           await postUpdate({
-            players: resetPlayers,
+            players: updatedPlayers.map(p => ({ ...p, ready: false })),
             votingIndex: nextIndex
           });
           
-          setVotingIndex(nextIndex);
           setMyVote(5);
-          // ❌ setView('VOTING'); <- useEffect váltja!
+          console.log("➡️ Next player");
         }
       } else {
-        // ✅ Még nem mindenki szavazott
-        await postUpdate({ players: playersWithReady });
+        // 5️⃣ MÉG NEM MINDENKI SZAVAZOTT
+        await postUpdate({ players: updatedPlayers });
         setView('WAITING_VOTE');
+        console.log("⏳ Waiting for votes...");
       }
     } catch (error) {
-      console.error("Szavazási hiba:", error);
+      console.error("Submit vote error:", error);
     }
   };
 
@@ -539,246 +463,89 @@ export default function App() {
             color: 'white',
             padding: '10px 20px',
             borderRadius: '10px',
-            zIndex: 1000,
-            textAlign: 'center'
+            zIndex: 1000
           }}>
             {error}
-            <button 
-              onClick={() => setError(null)}
-              style={{
-                marginLeft: '10px',
-                background: 'white',
-                color: 'red',
-                border: 'none',
-                borderRadius: '5px',
-                padding: '2px 8px',
-                cursor: 'pointer'
-              }}
-            >
-              ✕
-            </button>
+            <button onClick={() => setError(null)} style={{marginLeft:'10px',background:'white',color:'red',border:'none',borderRadius:'5px',padding:'2px 8px',cursor:'pointer'}}>✕</button>
           </div>
         )}
 
         {view === 'MENU' && (
           <div className="container" style={{justifyContent:'center'}}>
-            <h1 style={{fontFamily:'Black Ops One', fontSize:'3.5rem', textAlign:'center', textShadow:'0 0 20px #ff00de'}}>
-              TRASH UNIVERSE
-            </h1>
-            
+            <h1 style={{fontFamily:'Black Ops One', fontSize:'3.5rem', textAlign:'center', textShadow:'0 0 20px #ff00de'}}>TRASH UNIVERSE</h1>
             <div className="glass-card">
-              <input 
-                className="cyber-input" 
-                placeholder="NEVED" 
-                value={myName} 
-                onChange={e => setMyName(e.target.value)}
-                disabled={loading}
-              />
-              
-              <button 
-                className="btn-action" 
-                onClick={createRoom}
-                disabled={loading}
-              >
-                {loading ? 'FELDOLGOZÁS...' : 'ÚJ JÁTÉK'}
-              </button>
-              
+              <input className="cyber-input" placeholder="NEVED" value={myName} onChange={e => setMyName(e.target.value)} disabled={loading} />
+              <button className="btn-action" onClick={createRoom} disabled={loading}>{loading ? 'FELDOLGOZÁS...' : 'ÚJ JÁTÉK'}</button>
               <div style={{height:'1px', background:'#444', margin:'20px 0'}} />
-              
-              <input 
-                className="cyber-input" 
-                placeholder="SZOBA KÓD (4 szám)" 
-                value={roomId} 
-                onChange={e => setRoomId(e.target.value)}
-                disabled={loading}
-              />
-              
-              <button 
-                className="btn-action" 
-                style={{background:'#222'}} 
-                onClick={joinRoom}
-                disabled={loading}
-              >
-                {loading ? 'CSATLAKOZÁS...' : 'CSATLAKOZÁS'}
-              </button>
+              <input className="cyber-input" placeholder="SZOBA KÓD (4 szám)" value={roomId} onChange={e => setRoomId(e.target.value)} disabled={loading} />
+              <button className="btn-action" style={{background:'#222'}} onClick={joinRoom} disabled={loading}>{loading ? 'CSATLAKOZÁS...' : 'CSATLAKOZÁS'}</button>
             </div>
-            
-            {roomId && (
-              <p style={{textAlign:'center', color:'#888', marginTop:'20px'}}>
-                Aktuális szoba: {roomId}
-              </p>
-            )}
           </div>
         )}
 
         {view === 'LOBBY' && state && (
           <div className="container">
-            <h1 style={{fontSize:'3rem', textAlign:'center', color:'#00f3ff'}}>
-              SZOBA: {roomId}
-            </h1>
-            
+            <h1 style={{fontSize:'3rem', textAlign:'center', color:'#00f3ff'}}>SZOBA: {roomId}</h1>
             <div className="glass-card">
               <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'10px'}}>
                 {state.players?.map((p: any, i: number) => (
-                  <div 
-                    key={i} 
-                    className="player-pill"
-                    style={{
-                      background: p.name === myName ? 'linear-gradient(135deg, #ff00de, #9900cc)' : '#111',
-                      borderColor: p.name === myName ? '#ff00de' : '#555'
-                    }}
-                  >
+                  <div key={i} className="player-pill" style={{background: p.name === myName ? 'linear-gradient(135deg, #ff00de, #9900cc)' : '#111', borderColor: p.name === myName ? '#ff00de' : '#555'}}>
                     {p.name} {p.name === myName && '(TE)'}
                   </div>
                 ))}
               </div>
-              
               {(!state.players || state.players.length < 2) && (
-                <div style={{
-                  textAlign: 'center',
-                  marginTop: '15px',
-                  padding: '10px',
-                  background: 'rgba(255, 0, 222, 0.1)',
-                  borderRadius: '8px',
-                  border: '1px dashed #ff00de'
-                }}>
-                  ⚠️ Várj még {2 - (state.players?.length || 0)} játékost a játék indításához!
+                <div style={{textAlign:'center',marginTop:'15px',padding:'10px',background:'rgba(255,0,222,0.1)',borderRadius:'8px',border:'1px dashed #ff00de'}}>
+                  ⚠️ Várj még {2 - (state.players?.length || 0)} játékost!
                 </div>
               )}
             </div>
-            
             {role === 'HOST' && state.players && state.players.length >= 2 && (
-              <button 
-                className="btn-action" 
-                onClick={startRound}
-                disabled={loading}
-              >
+              <button className="btn-action" onClick={startRound} disabled={loading}>
                 {loading ? 'INDÍTÁS...' : `JÁTÉK INDÍTÁSA (${state.players.length} JÁTÉKOS)`}
               </button>
             )}
-            
-            {role === 'CLIENT' && (
-              <div style={{textAlign:'center', color:'#888', marginTop:'20px'}}>
-                Várakozás a host játék indítására...
-              </div>
-            )}
-            
-            <button 
-              className="btn-action" 
-              style={{background:'#222', marginTop:'10px'}}
-              onClick={() => {
-                setView('MENU');
-                setRole(null);
-              }}
-            >
-              VISSZA A MENÜBE
-            </button>
+            {role === 'CLIENT' && <div style={{textAlign:'center', color:'#888', marginTop:'20px'}}>Várakozás a host-ra...</div>}
+            <button className="btn-action" style={{background:'#222', marginTop:'10px'}} onClick={() => { setView('MENU'); setRole(null); }}>VISSZA</button>
           </div>
         )}
 
         {view === 'PLAYING' && myPlayer?.tasks && (
           <div className="container">
-            <div style={{
-              padding: '15px 20px',
-              background: 'rgba(0,0,0,0.9)',
-              borderBottom: '2px solid #ff00de',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              position: 'sticky',
-              top: 0,
-              zIndex: 100
-            }}>
+            <div style={{padding:'15px 20px',background:'rgba(0,0,0,0.9)',borderBottom:'2px solid #ff00de',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:100}}>
               <span style={{fontWeight:'bold'}}>{myName}</span>
-              <span style={{fontFamily:'Black Ops One', color:'#ff00de'}}>
-                KÖR: {state.currentRound || 1}/{state.totalRounds || 3}
-              </span>
+              <span style={{fontFamily:'Black Ops One', color:'#ff00de'}}>KÖR: {state.currentRound}/{state.totalRounds}</span>
             </div>
             
             <div className="glass-card">
               <div className="task-label">1. SZITUÁCIÓ (Betűk: {myPlayer.tasks.t1.letters})</div>
-              <div 
-                style={{fontSize:'1.2rem', marginBottom:'15px'}} 
-                dangerouslySetInnerHTML={{__html: myPlayer.tasks.t1.text.replace("...", "_______")}} 
-              />
-              <input 
-                className="cyber-input" 
-                placeholder="Ide a választ..." 
-                value={answers.t1} 
-                onChange={e => setAnswers({...answers, t1: e.target.value})}
-              />
+              <div style={{fontSize:'1.2rem', marginBottom:'15px'}} dangerouslySetInnerHTML={{__html: myPlayer.tasks.t1.text.replace("...", "_______")}} />
+              <input className="cyber-input" placeholder="Ide a választ..." value={answers.t1} onChange={e => setAnswers({...answers, t1: e.target.value})} />
             </div>
 
             <div className="glass-card">
               <div className="task-label">2. KÍN-PAD (Betűk: {myPlayer.tasks.t2.letters})</div>
-              <div style={{fontSize:'1.2rem', marginBottom:'15px'}}>
-                {myPlayer.tasks.t2.text}
-              </div>
-              <input 
-                className="cyber-input" 
-                placeholder="Vallomásod..." 
-                value={answers.t2} 
-                onChange={e => setAnswers({...answers, t2: e.target.value})}
-              />
+              <div style={{fontSize:'1.2rem', marginBottom:'15px'}}>{myPlayer.tasks.t2.text}</div>
+              <input className="cyber-input" placeholder="Vallomásod..." value={answers.t2} onChange={e => setAnswers({...answers, t2: e.target.value})} />
             </div>
 
             <div className="glass-card">
-              <div className="task-label">3. SZTORILÁNC (Kösd össze!)</div>
+              <div className="task-label">3. SZTORILÁNC</div>
               <div className="celeb-badge">{myPlayer.tasks.t3.celebs[0]}</div>
-              <input 
-                className="cyber-input" 
-                placeholder="Mit tett vele?" 
-                value={answers.t3_1} 
-                onChange={e => setAnswers({...answers, t3_1: e.target.value})}
-              />
-              <div className="celeb-badge" style={{background:'#00f3ff', color:'black'}}>
-                {myPlayer.tasks.t3.celebs[1]}
-              </div>
-              <input 
-                className="cyber-input" 
-                placeholder="És aztán?" 
-                value={answers.t3_2} 
-                onChange={e => setAnswers({...answers, t3_2: e.target.value})}
-              />
-              <div className="celeb-badge" style={{background:'#ffdd00', color:'black'}}>
-                {myPlayer.tasks.t3.celebs[2]}
-              </div>
+              <input className="cyber-input" placeholder="Mit tett vele?" value={answers.t3_1} onChange={e => setAnswers({...answers, t3_1: e.target.value})} />
+              <div className="celeb-badge" style={{background:'#00f3ff', color:'black'}}>{myPlayer.tasks.t3.celebs[1]}</div>
+              <input className="cyber-input" placeholder="És aztán?" value={answers.t3_2} onChange={e => setAnswers({...answers, t3_2: e.target.value})} />
+              <div className="celeb-badge" style={{background:'#ffdd00', color:'black'}}>{myPlayer.tasks.t3.celebs[2]}</div>
             </div>
 
             <div className="glass-card">
               <div className="task-label">4. TRASH SZÓTÁR</div>
-              <div style={{fontSize:'1.2rem', marginBottom:'10px', color:'#ff00de'}}>
-                {myPlayer.tasks.t4.prompt}
-              </div>
-              <div style={{color:'#888', marginBottom:'15px', fontSize:'0.9rem'}}>
-                Írj valami vicceset ezekkel a betűkkel kezdve:
-              </div>
-              <div style={{
-                fontSize:'2rem', 
-                textAlign:'center', 
-                color:'#00f3ff', 
-                fontWeight:'bold',
-                marginBottom:'15px',
-                letterSpacing:'10px'
-              }}>
-                {myPlayer.tasks.t4.letters}
-              </div>
-              <input 
-                className="cyber-input" 
-                placeholder="Pl: Barna Rakott Cici" 
-                value={answers.t4} 
-                onChange={e => setAnswers({...answers, t4: e.target.value})}
-              />
+              <div style={{fontSize:'1.2rem', marginBottom:'10px', color:'#ff00de'}}>{myPlayer.tasks.t4.prompt}</div>
+              <div style={{fontSize:'2rem', textAlign:'center', color:'#00f3ff', fontWeight:'bold', marginBottom:'15px', letterSpacing:'10px'}}>{myPlayer.tasks.t4.letters}</div>
+              <input className="cyber-input" placeholder="Pl: Barna Rakott Cici" value={answers.t4} onChange={e => setAnswers({...answers, t4: e.target.value})} />
             </div>
             
-            <button 
-              className="btn-action" 
-              onClick={submitAnswers}
-              disabled={loading || !answers.t1.trim() || !answers.t2.trim() || !answers.t3_1.trim() || !answers.t3_2.trim() || !answers.t4.trim()}
-              style={{
-                opacity: (!answers.t1.trim() || !answers.t2.trim() || !answers.t3_1.trim() || !answers.t3_2.trim() || !answers.t4.trim()) ? 0.6 : 1
-              }}
-            >
+            <button className="btn-action" onClick={submitAnswers} disabled={loading || !answers.t1.trim() || !answers.t2.trim() || !answers.t3_1.trim() || !answers.t3_2.trim() || !answers.t4.trim()}>
               {loading ? 'BEKÜLDÉS...' : 'KÉSZ VAGYOK!'}
             </button>
           </div>
@@ -787,41 +554,25 @@ export default function App() {
         {view === 'VOTING' && targetPlayer && (
           <div className="container">
             <div style={{textAlign:'center', marginBottom:'20px'}}>
-              <div style={{color:'#888', fontSize:'0.9rem'}}>
-                KÖR {state.currentRound || 1}/{state.totalRounds || 3}
-              </div>
-              <h1 style={{color:'#ff00de', fontSize:'2.5rem', margin:'10px 0'}}>
-                {targetPlayer.name}
-              </h1>
-              <div style={{color:'#888'}}>
-                {votingIndex + 1} / {state.votingPlayers.length} játékos értékelve
-              </div>
-              {isDoubleWeighted && (
-                <div style={{color:'#ffdd00', fontWeight:'bold', marginTop:'5px'}}>
-                  ⚠️ DUPLA SÚLY!
-                </div>
-              )}
+              <div style={{color:'#888', fontSize:'0.9rem'}}>KÖR {state.currentRound}/{state.totalRounds}</div>
+              <h1 style={{color:'#ff00de', fontSize:'2.5rem', margin:'10px 0'}}>{targetPlayer.name}</h1>
+              <div style={{color:'#888'}}>{votingIndex + 1} / {state.votingPlayers.length} játékos értékelve</div>
+              {isDoubleWeighted && <div style={{color:'#ffdd00', fontWeight:'bold', marginTop:'5px'}}>⚠️ DUPLA SÚLY!</div>}
             </div>
             
             <div className="glass-card">
               <div className="task-label">SZITUÁCIÓ:</div>
-              <div style={{color:'#ffdd00', fontSize:'1.3rem', padding:'10px', minHeight:'80px'}}>
-                {targetPlayer.answers?.t1 || "Nem válaszolt"}
-              </div>
+              <div style={{color:'#ffdd00', fontSize:'1.3rem', padding:'10px', minHeight:'80px'}}>{targetPlayer.answers?.t1 || "Nem válaszolt"}</div>
             </div>
             
             <div className="glass-card">
               <div className="task-label">VALLOMÁS:</div>
-              <div style={{color:'#00f3ff', fontSize:'1.3rem', padding:'10px', minHeight:'80px'}}>
-                {targetPlayer.answers?.t2 || "Nem válaszolt"}
-              </div>
+              <div style={{color:'#00f3ff', fontSize:'1.3rem', padding:'10px', minHeight:'80px'}}>{targetPlayer.answers?.t2 || "Nem válaszolt"}</div>
             </div>
 
             <div className="glass-card">
               <div className="task-label">TRASH SZÓTÁR:</div>
-              <div style={{color:'#ff00de', fontSize:'1.1rem', padding:'10px', minHeight:'60px'}}>
-                {targetPlayer.answers?.t4 || "Nem válaszolt"}
-              </div>
+              <div style={{color:'#ff00de', fontSize:'1.1rem', padding:'10px', minHeight:'60px'}}>{targetPlayer.answers?.t4 || "Nem válaszolt"}</div>
             </div>
             
             {targetPlayer.name !== myName ? (
@@ -829,19 +580,8 @@ export default function App() {
                 <div style={{textAlign:'center', fontWeight:'bold', color:'#00f3ff', fontSize:'1.5rem'}}>
                   PONT: {myVote} {isDoubleWeighted && `× 2 = ${myVote * 2}`}
                 </div>
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="10" 
-                  value={myVote} 
-                  onChange={e => setMyVote(parseInt(e.target.value))}
-                />
-                <button 
-                  className="btn-action" 
-                  style={{marginTop:'15px'}}
-                  onClick={submitVote}
-                  disabled={loading}
-                >
+                <input type="range" min="1" max="10" value={myVote} onChange={e => setMyVote(parseInt(e.target.value))} />
+                <button className="btn-action" style={{marginTop:'15px'}} onClick={submitVote} disabled={loading}>
                   {loading ? 'SZAVAZÁS...' : 'SZAVAZOK'}
                 </button>
               </div>
@@ -856,69 +596,23 @@ export default function App() {
 
         {(view === 'WAITING' || view === 'WAITING_VOTE') && (
           <div className="container" style={{justifyContent:'center', alignItems:'center'}}>
-            <div style={{fontSize:'5rem', animation:'pulse 1.5s infinite', textAlign:'center'}}>
-              ⏳
-            </div>
-            <h2 style={{textAlign:'center'}}>
-              {view === 'WAITING' ? 'VÁRAKOZÁS A TÖBBI JÁTÉKOSOKRA...' : 'SZAVAZATOK ÖSSZESÍTÉSE...'}
-            </h2>
-            <p style={{textAlign:'center', color:'#888', maxWidth:'400px'}}>
-              A játék automatikusan folytatódik, amint mindenki kész
-            </p>
+            <div style={{fontSize:'5rem', animation:'pulse 1.5s infinite', textAlign:'center'}}>⏳</div>
+            <h2 style={{textAlign:'center'}}>{view === 'WAITING' ? 'VÁRAKOZÁS A TÖBBI JÁTÉKOSOKRA...' : 'SZAVAZATOK ÖSSZESÍTÉSE...'}</h2>
+            <p style={{textAlign:'center', color:'#888', maxWidth:'400px'}}>A játék automatikusan folytatódik, amint mindenki kész</p>
           </div>
         )}
 
         {view === 'LEADERBOARD' && state && (
           <div className="container">
-            <h1 style={{textAlign:'center', fontSize:'3.5rem', color:'#ff00de', marginBottom:'30px'}}>
-              VÉGEREDMÉNY
-            </h1>
-            
-            {state.players
-              ?.sort((a: any, b: any) => (b.score || 0) - (a.score || 0))
-              .map((p: any, i: number) => (
-                <div 
-                  key={p.name} 
-                  className="glass-card" 
-                  style={{
-                    display:'flex', 
-                    justifyContent:'space-between', 
-                    alignItems:'center',
-                    background: p.name === myName ? 'rgba(255, 0, 222, 0.2)' : 'rgba(15, 10, 25, 0.9)',
-                    border: i === 0 ? '2px solid #ffdd00' : undefined
-                  }}
-                >
-                  <div style={{fontSize:'1.3rem'}}>
-                    {i === 0 && '🏆 '} #{i + 1} {p.name} {p.name === myName && '(TE)'}
-                  </div>
-                  <div style={{fontSize:'2rem', color:'#00f3ff', fontWeight:'bold'}}>
-                    {p.score || 0}
-                  </div>
-                </div>
-              ))}
-            
-            {role === 'HOST' && (
-              <button 
-                className="btn-action" 
-                onClick={startRound}
-                disabled={loading}
-              >
-                {loading ? 'FELDOLGOZÁS...' : 'ÚJ JÁTÉK INDÍTÁSA'}
-              </button>
-            )}
-            
-            <button 
-              className="btn-action" 
-              style={{background:'#222', marginTop:'10px'}}
-              onClick={() => {
-                setView('MENU');
-                setRole(null);
-                setRoomId('');
-                setState(null);
-              }}
-            >
-              VISSZA A FŐMENÜBE
-            </button>
+            <h1 style={{textAlign:'center', fontSize:'3.5rem', color:'#ff00de', marginBottom:'30px'}}>VÉGEREDMÉNY</h1>
+            {state.players?.sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).map((p: any, i: number) => (
+              <div key={p.name} className="glass-card" style={{display:'flex', justifyContent:'space-between', alignItems:'center', background: p.name === myName ? 'rgba(255, 0, 222, 0.2)' : 'rgba(15, 10, 25, 0.9)', border: i === 0 ? '2px solid #ffdd00' : undefined}}>
+                <div style={{fontSize:'1.3rem'}}>{i === 0 && '🏆 '} #{i + 1} {p.name} {p.name === myName && '(TE)'}</div>
+                <div style={{fontSize:'2rem', color:'#00f3ff', fontWeight:'bold'}}>{p.score || 0}</div>
+              </div>
+            ))}
+            {role === 'HOST' && <button className="btn-action" onClick={startRound} disabled={loading}>{loading ? 'FELDOLGOZÁS...' : 'ÚJ JÁTÉK INDÍTÁSA'}</button>}
+            <button className="btn-action" style={{background:'#222', marginTop:'10px'}} onClick={() => { setView('MENU'); setRole(null); setRoomId(''); setState(null); }}>VISSZA A FŐMENÜBE</button>
           </div>
         )}
       </div>

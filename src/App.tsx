@@ -245,6 +245,7 @@ export default function App() {
         setRoomId(id);
         setRole('HOST');
         setState(initialState);
+      await new Promise(resolve => setTimeout(resolve, 500));
         setView('LOBBY');
       } else {
         setError("Nem sikerült létrehozni a szobát");

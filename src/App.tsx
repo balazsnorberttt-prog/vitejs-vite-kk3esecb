@@ -192,11 +192,8 @@ export default function App() {
           setError(null);
           
           // ✅ JAVÍTOTT: Csak akkor változtat view-t, ha a state phase valóban más
-          if (data.currentPhase && data.currentPhase !== view && view !== 'WAITING' && view !== 'WAITING_VOTE') {
-            console.log("Auto-switching to:", data.currentPhase);
-            setView(data.currentPhase);
-          }
-          
+         
+         
           if (data.votingIndex !== undefined) {
             setVotingIndex(data.votingIndex);
           }

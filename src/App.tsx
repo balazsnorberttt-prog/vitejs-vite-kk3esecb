@@ -1,11 +1,11 @@
-// ✅ VÉGLEGES VERZIÓ:
-// 1. Max 6 játékos értékelése körönként
-// 2. Páratlan szám esetén súlyozás (2x pont az utolsónak)
-// 3. Új 4. feladat: betűkkel vicces szó írása
+// ✅ VÉGLEGES - 3 KÖRÖS RENDSZER
+// - 3 kör: mindegyik után értékelés
+// - Nincs visszadobálás, stabil flow
+// - Jobb 3D grafika
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Float } from '@react-three/drei';
+import { Stars, Float, MeshDistortMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 
 const BACKEND_URL = "https://trash-backend.balazsnorberttt.workers.dev";
@@ -26,29 +26,65 @@ const GLOBAL_CSS = `
   .player-pill { padding: 8px 15px; background: #111; border-radius: 20px; border: 1px solid #ff00de; font-weight: bold; margin: 5px; }
   .rating-box { margin-top: 10px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 12px; border: 1px dashed #ff00de; }
   input[type=range] { width: 100%; cursor: pointer; accent-color: #ff00de; height: 30px; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } }
 `;
+
+// ✅ JAVÍTOTT 3D - Több elem, jobb vizuális
+function CyberSphere({ position }: any) {
+  const meshRef = useRef<THREE.Mesh>(null!);
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x = state.clock.elapsedTime * 0.3;
+      meshRef.current.rotation.y = state.clock.elapsedTime * 0.2;
+    }
+  });
+  return (
+    <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
+      <mesh ref={meshRef} position={position}>
+        <sphereGeometry args={[2, 32, 32]} />
+        <MeshDistortMaterial
+          color="#ff00de"
+          attach="material"
+          distort={0.4}
+          speed={2}
+          roughness={0.2}
+          metalness={0.8}
+        />
+      </mesh>
+    </Float>
+  );
+}
 
 function FloatingDebris() {
   const mesh = useRef<THREE.InstancedMesh>(null!);
-  const count = 50;
+  const count = 80;
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particles = useMemo(() => Array.from({ length: count }, () => ({
-    pos: [(Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60],
-    rotSpeed: Math.random() * 0.015,
-    scale: 0.4 + Math.random()
+    pos: [(Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80],
+    rotSpeed: Math.random() * 0.02,
+    scale: 0.3 + Math.random() * 0.8
   })), []);
+  
   useFrame((state) => {
     if (!mesh.current) return;
     particles.forEach((p, i) => {
       dummy.position.set(p.pos[0], p.pos[1], p.pos[2]);
-      dummy.rotation.x += p.rotSpeed; dummy.rotation.y += p.rotSpeed;
-      dummy.scale.setScalar(p.scale); dummy.updateMatrix();
+      dummy.rotation.x += p.rotSpeed;
+      dummy.rotation.y += p.rotSpeed;
+      dummy.scale.setScalar(p.scale);
+      dummy.updateMatrix();
       mesh.current.setMatrixAt(i, dummy.matrix);
     });
     mesh.current.instanceMatrix.needsUpdate = true;
-    mesh.current.rotation.y = state.clock.elapsedTime * 0.05;
+    mesh.current.rotation.y = state.clock.elapsedTime * 0.03;
   });
-  return <instancedMesh ref={mesh} args={[undefined, undefined, count]}><dodecahedronGeometry args={[1, 0]} /><meshStandardMaterial color="#ff00de" wireframe /></instancedMesh>;
+  
+  return (
+    <instancedMesh ref={mesh} args={[undefined, undefined, count]}>
+      <octahedronGeometry args={[1, 0]} />
+      <meshStandardMaterial color="#00f3ff" wireframe />
+    </instancedMesh>
+  );
 }
 
 const TRASH_CELEBS = ["Tóth Gabi", "Alekosz", "Varga Irén", "Berki szelleme", "Győzike", "Orbán Viktor", "Pumped Gabo", "PSG Ogli", "Zámbó Jimmy", "Kiszel Tünde", "G.w.M", "Szabyest", "Deutsch Tamás", "Varga Judit", "Lakatos Brendon", "Gyurcsány Ferenc", "Németh Szilárd", "Whisper Ton", "Bartos Cs. István", "Fekete Pákó"];
@@ -67,8 +103,6 @@ const QUESTIONS = [
   "Mit mondanál, ha Orbán Viktor meztelenül kopogna nálad éjfélkor?",
   "Mit súgnál Putyin fülébe, ha te lennél a tolmácsa?"
 ];
-
-// ✅ ÚJ: 4. feladat promtjai (celeb vagy vicces kifejezés)
 const TASK4_PROMPTS = [
   "Tóth Gabi kedvenc szexjátéka:",
   "Orbán Viktor titkos hobbija:",
@@ -81,7 +115,6 @@ const TASK4_PROMPTS = [
   "Amit Kiszel Tünde soha nem mondana ki:",
   "Mit kerestek Németh Szilárd fürdőszobájában:"
 ];
-
 const LETTERS = ["A", "B", "D", "E", "F", "G", "H", "K", "L", "M", "N", "P", "R", "S", "T", "V", "Z"];
 
 const generateTasks = () => {
@@ -91,23 +124,19 @@ const generateTasks = () => {
     t1: { text: rand(SITUATIONS).replace("{WHO}", `<span class="highlight">${rand(TRASH_CELEBS)}</span>`), letters: getLetters() },
     t2: { text: rand(QUESTIONS), letters: getLetters() },
     t3: { celebs: [rand(TRASH_CELEBS), rand(TRASH_CELEBS), rand(TRASH_CELEBS)] },
-    // ✅ ÚJ: 4. feladat mostantól prompt + betűk
     t4: { prompt: rand(TASK4_PROMPTS), letters: getLetters() }
   };
 };
 
-// ✅ ÚJ: Kiszámítja, hogy kit kell értékelni (max 6)
 const getVotingPlayers = (players: any[]) => {
   if (players.length <= 6) return players;
-  // Ha több mint 6, random választunk 6-ot
   const shuffled = [...players].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, 6);
 };
 
-// ✅ ÚJ: Kiszámítja, hogy kinek kell 2x súlyt kapnia (páratlan esetén)
 const needsDoubleWeight = (votingPlayers: any[], index: number) => {
-  if (votingPlayers.length % 2 === 0) return false; // Páros, nincs súlyozás
-  return index === votingPlayers.length - 1; // Utolsó játékos 2x súlyt kap
+  if (votingPlayers.length % 2 === 0) return false;
+  return index === votingPlayers.length - 1;
 };
 
 export default function App() {
@@ -134,18 +163,15 @@ export default function App() {
         const res = await fetch(`${BACKEND_URL}?roomId=${roomId}`);
         
         if (!res.ok) {
-          if (res.status === 404) {
-            console.log("Szoba nem található (404)");
-            if (view !== 'LOBBY') {
-              try {
-                const errorData = await res.json();
-                if (errorData?.error === "Nincs szoba") {
-                  setError("A szoba lejárt vagy törölve lett");
-                  setView('MENU');
-                }
-              } catch (e) {
-                console.log("Nem sikerült parse-olni a 404 választ");
+          if (res.status === 404 && view !== 'LOBBY') {
+            try {
+              const errorData = await res.json();
+              if (errorData?.error === "Nincs szoba") {
+                setError("A szoba lejárt vagy törölve lett");
+                setView('MENU');
               }
+            } catch (e) {
+              console.log("404 parse hiba");
             }
           }
           return;
@@ -154,7 +180,6 @@ export default function App() {
         const data = await res.json();
         
         if (data && data.error) {
-          console.log("Szerver error:", data.error);
           if (data.error === "Nincs szoba" && view !== 'MENU' && view !== 'LOBBY') {
             setError("A szoba lejárt vagy törölve lett");
             setView('MENU');
@@ -166,8 +191,9 @@ export default function App() {
           setState(data);
           setError(null);
           
-          if (data.currentPhase && data.currentPhase !== view) {
-            console.log("Auto-changing view to:", data.currentPhase);
+          // ✅ JAVÍTOTT: Csak akkor változtat view-t, ha a state phase valóban más
+          if (data.currentPhase && data.currentPhase !== view && view !== 'WAITING' && view !== 'WAITING_VOTE') {
+            console.log("Auto-switching to:", data.currentPhase);
             setView(data.currentPhase);
           }
           
@@ -176,7 +202,7 @@ export default function App() {
           }
         }
       } catch (e) {
-        console.error("Szinkronizációs hiba:", e);
+        console.error("Sync hiba:", e);
       }
     }, 2000);
     
@@ -193,22 +219,15 @@ export default function App() {
     const targetId = customRoomId || roomId;
 
     try {
-      const payload = {
-        roomId: targetId,
-        ...update
-      };
+      const payload = { roomId: targetId, ...update };
       
       const response = await fetch(`${BACKEND_URL}?roomId=${targetId}`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
       const data = await response.json();
       
@@ -251,7 +270,9 @@ export default function App() {
         currentPhase: 'LOBBY',
         roomId: id,
         votingIndex: 0,
-        votingPlayers: [], // ✅ ÚJ: Itt tároljuk, hogy kiket értékelünk
+        votingPlayers: [],
+        currentRound: 0, // ✅ ÚJ: Kör számláló
+        totalRounds: 3,   // ✅ ÚJ: Összesen 3 kör
         createdAt: new Date().toISOString()
       };
       
@@ -284,9 +305,7 @@ export default function App() {
     
     try {
       const res = await fetch(`${BACKEND_URL}?roomId=${roomId}`);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       
       const data = await res.json();
       
@@ -309,11 +328,7 @@ export default function App() {
         isHost: false
       };
       
-      const updatedPlayers = [
-        ...(data.players || []),
-        newPlayer
-      ];
-      
+      const updatedPlayers = [...(data.players || []), newPlayer];
       const updateResult = await postUpdate({ players: updatedPlayers });
       
       if (updateResult && !updateResult.error) {
@@ -328,7 +343,7 @@ export default function App() {
     }
   };
 
-  // ✅ JAVÍTOTT: Értékelendő játékosok kiválasztása
+  // ✅ JAVÍTOTT: Első kör indítása
   const startRound = async () => {
     if (!state || role !== 'HOST') return;
     
@@ -340,13 +355,13 @@ export default function App() {
         ready: false
       }));
       
-      // ✅ ÚJ: Kiválasztjuk, hogy kiket értékelünk (max 6)
       const votingPlayers = getVotingPlayers(updatedPlayers);
       
       await postUpdate({ 
         players: updatedPlayers,
-        votingPlayers: votingPlayers, // ✅ Ezt is elmentjük!
-        currentPhase: 'PLAYING', 
+        votingPlayers: votingPlayers,
+        currentPhase: 'PLAYING',
+        currentRound: 1, // ✅ 1. kör
         votingIndex: 0,
         roundStarted: new Date().toISOString()
       });
@@ -357,6 +372,7 @@ export default function App() {
     }
   };
 
+  // ✅ JAVÍTOTT: Válaszok beküldése
   const submitAnswers = async () => {
     if (!state || !myName) return;
     
@@ -376,18 +392,22 @@ export default function App() {
       const allReady = updatedPlayers.every((p: any) => p.ready);
       
       await postUpdate({ 
-        players: updatedPlayers, 
-        currentPhase: allReady ? 'VOTING' : 'PLAYING',
-        votingIndex: 0
+        players: updatedPlayers,
+        currentPhase: allReady ? 'VOTING' : state.currentPhase
       });
       
-      setView('WAITING');
+      // ✅ JAVÍTOTT: Ha mindenki kész, VOTING-ra vált, különben marad WAITING
+      if (allReady) {
+        setView('VOTING');
+      } else {
+        setView('WAITING');
+      }
     } catch (error) {
       console.error("Válasz beküldési hiba:", error);
     }
   };
 
-  // ✅ JAVÍTOTT SZAVAZÁS - Súlyozott pontokkal
+  // ✅ JAVÍTOTT: Szavazás - 3 körös logikával
   const submitVote = async () => {
     if (!state || !state.votingPlayers || votingIndex >= state.votingPlayers.length) return;
     
@@ -396,56 +416,79 @@ export default function App() {
       const isDoubleWeighted = needsDoubleWeight(state.votingPlayers, votingIndex);
       const actualPoints = isDoubleWeighted ? myVote * 2 : myVote;
       
-      // ✅ Pontok hozzáadása a teljes players listában
       const updatedPlayers = state.players.map((player: any) => {
         if (player.name === targetPlayer.name) {
-          return {
-            ...player,
-            score: (player.score || 0) + actualPoints
-          };
+          return { ...player, score: (player.score || 0) + actualPoints };
         }
         return player;
       });
       
-      // ✅ Ready állapot frissítése
       const playersWithReady = updatedPlayers.map((player: any) => {
         if (player.name === myName) {
-          return {
-            ...player,
-            ready: true
-          };
+          return { ...player, ready: true };
         }
         return player;
       });
       
-      // ✅ Mindenki szavazott?
       const allVoted = playersWithReady.every((p: any) => p.ready);
       
       if (allVoted) {
         const nextIndex = votingIndex + 1;
-        const isOver = nextIndex >= state.votingPlayers.length; // ✅ votingPlayers-hez viszonyítunk!
+        const votingComplete = nextIndex >= state.votingPlayers.length;
         
-        // ✅ Ready nullázás
-        const resetPlayers = playersWithReady.map(p => ({ ...p, ready: false }));
-        
-        await postUpdate({ 
-          players: resetPlayers, 
-          currentPhase: isOver ? 'LEADERBOARD' : 'VOTING', 
-          votingIndex: isOver ? 0 : nextIndex 
-        });
-        
-        if (isOver) {
-          setView('LEADERBOARD');
+        if (votingComplete) {
+          // ✅ KRITIKUS: Itt dől el, hogy új kör vagy leaderboard
+          const nextRound = (state.currentRound || 0) + 1;
+          const isGameOver = nextRound > (state.totalRounds || 3);
+          
+          if (isGameOver) {
+            // ✅ JÁTÉK VÉGE
+            await postUpdate({
+              players: playersWithReady.map(p => ({ ...p, ready: false })),
+              currentPhase: 'LEADERBOARD',
+              votingIndex: 0
+            });
+            setView('LEADERBOARD');
+          } else {
+            // ✅ ÚJ KÖR KEZDŐDIK
+            const newPlayers = playersWithReady.map((player: any) => ({
+              ...player,
+              tasks: generateTasks(),
+              answers: null,
+              ready: false
+            }));
+            
+            const newVotingPlayers = getVotingPlayers(newPlayers);
+            
+            await postUpdate({
+              players: newPlayers,
+              votingPlayers: newVotingPlayers,
+              currentPhase: 'PLAYING',
+              currentRound: nextRound,
+              votingIndex: 0
+            });
+            
+            setAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4: "" });
+            setMyVote(5);
+            setVotingIndex(0);
+            setView('PLAYING');
+          }
         } else {
+          // ✅ Következő játékos értékelése
+          const resetPlayers = playersWithReady.map(p => ({ ...p, ready: false }));
+          
+          await postUpdate({
+            players: resetPlayers,
+            votingIndex: nextIndex
+          });
+          
           setVotingIndex(nextIndex);
           setMyVote(5);
           setView('VOTING');
         }
       } else {
-        await postUpdate({ 
-          players: playersWithReady
-        });
-        
+        // ✅ Még nem mindenki szavazott
+        await postUpdate({ players: playersWithReady });
         setView('WAITING_VOTE');
       }
     } catch (error) {
@@ -462,10 +505,13 @@ export default function App() {
       <style>{GLOBAL_CSS}</style>
       <div className="app-layer">
         <div style={{position:'absolute', inset:0, zIndex:-1}}>
-          <Canvas>
-            <Stars count={5000} factor={4} />
-            <ambientLight intensity={0.5} />
-            <pointLight position={[10,10,10]} color="#00f3ff" intensity={2} />
+          <Canvas camera={{ position: [0, 0, 20], fov: 75 }}>
+            <Stars count={8000} factor={6} saturation={0.5} fade speed={1} />
+            <ambientLight intensity={0.3} />
+            <pointLight position={[10, 10, 10]} color="#00f3ff" intensity={3} />
+            <pointLight position={[-10, -10, -10]} color="#ff00de" intensity={2} />
+            <CyberSphere position={[5, 2, -5]} />
+            <CyberSphere position={[-5, -2, -8]} />
             <Float>
               <FloatingDebris />
             </Float>
@@ -494,7 +540,8 @@ export default function App() {
                 color: 'red',
                 border: 'none',
                 borderRadius: '5px',
-                padding: '2px 8px'
+                padding: '2px 8px',
+                cursor: 'pointer'
               }}
             >
               ✕
@@ -632,7 +679,9 @@ export default function App() {
               zIndex: 100
             }}>
               <span style={{fontWeight:'bold'}}>{myName}</span>
-              <span style={{fontFamily:'Black Ops One'}}>KÓD: {roomId}</span>
+              <span style={{fontFamily:'Black Ops One', color:'#ff00de'}}>
+                KÖR: {state.currentRound || 1}/{state.totalRounds || 3}
+              </span>
             </div>
             
             <div className="glass-card">
@@ -685,7 +734,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* ✅ ÚJ 4. FELADAT */}
             <div className="glass-card">
               <div className="task-label">4. TRASH SZÓTÁR</div>
               <div style={{fontSize:'1.2rem', marginBottom:'10px', color:'#ff00de'}}>
@@ -727,15 +775,19 @@ export default function App() {
 
         {view === 'VOTING' && targetPlayer && (
           <div className="container">
-            <h1 style={{textAlign:'center', color:'#ff00de', fontSize:'2.5rem'}}>
-              {targetPlayer.name}
-            </h1>
-            
-            <div style={{textAlign:'center', color:'#888', marginBottom:'20px'}}>
-              {votingIndex + 1} / {state.votingPlayers.length} játékos értékelve
+            <div style={{textAlign:'center', marginBottom:'20px'}}>
+              <div style={{color:'#888', fontSize:'0.9rem'}}>
+                KÖR {state.currentRound || 1}/{state.totalRounds || 3}
+              </div>
+              <h1 style={{color:'#ff00de', fontSize:'2.5rem', margin:'10px 0'}}>
+                {targetPlayer.name}
+              </h1>
+              <div style={{color:'#888'}}>
+                {votingIndex + 1} / {state.votingPlayers.length} játékos értékelve
+              </div>
               {isDoubleWeighted && (
                 <div style={{color:'#ffdd00', fontWeight:'bold', marginTop:'5px'}}>
-                  ⚠️ DUPLA SÚLY! (Páratlan számú játékos miatt)
+                  ⚠️ DUPLA SÚLY!
                 </div>
               )}
             </div>
@@ -807,8 +859,8 @@ export default function App() {
 
         {view === 'LEADERBOARD' && state && (
           <div className="container">
-            <h1 style={{textAlign:'center', fontSize:'3.5rem', color:'#ff00de'}}>
-              EREDMÉNYEK
+            <h1 style={{textAlign:'center', fontSize:'3.5rem', color:'#ff00de', marginBottom:'30px'}}>
+              VÉGEREDMÉNY
             </h1>
             
             {state.players
@@ -821,11 +873,12 @@ export default function App() {
                     display:'flex', 
                     justifyContent:'space-between', 
                     alignItems:'center',
-                    background: p.name === myName ? 'rgba(255, 0, 222, 0.2)' : 'rgba(15, 10, 25, 0.9)'
+                    background: p.name === myName ? 'rgba(255, 0, 222, 0.2)' : 'rgba(15, 10, 25, 0.9)',
+                    border: i === 0 ? '2px solid #ffdd00' : undefined
                   }}
                 >
                   <div style={{fontSize:'1.3rem'}}>
-                    #{i + 1} {p.name} {p.name === myName && '(TE)'}
+                    {i === 0 && '🏆 '} #{i + 1} {p.name} {p.name === myName && '(TE)'}
                   </div>
                   <div style={{fontSize:'2rem', color:'#00f3ff', fontWeight:'bold'}}>
                     {p.score || 0}
@@ -839,7 +892,7 @@ export default function App() {
                 onClick={startRound}
                 disabled={loading}
               >
-                {loading ? 'FELDOLGOZÁS...' : 'ÚJ KÖR'}
+                {loading ? 'FELDOLGOZÁS...' : 'ÚJ JÁTÉK INDÍTÁSA'}
               </button>
             )}
             

@@ -391,15 +391,23 @@ export default function App() {
       
       const allReady = updatedPlayers.every((p: any) => p.ready);
       
-      await postUpdate({ 
-        players: updatedPlayers,
-        currentPhase: allReady ? 'VOTING' : state.currentPhase
-      });
-      
-      // ✅ JAVÍTOTT: Ha mindenki kész, VOTING-ra vált, különben marad WAITING
       if (allReady) {
+        // ✅ KRITIKUS FIX: Ready flag-ek nullázása VOTING indításakor!
+        const resetPlayers = updatedPlayers.map(p => ({ ...p, ready: false }));
+        
+        await postUpdate({ 
+          players: resetPlayers,
+          currentPhase: 'VOTING',
+          votingIndex: 0
+        });
+        
         setView('VOTING');
       } else {
+        await postUpdate({ 
+          players: updatedPlayers,
+          currentPhase: state.currentPhase
+        });
+        
         setView('WAITING');
       }
     } catch (error) {

@@ -96,7 +96,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // === JAVÍTOTT SZINKRONIZÁCIÓ ===
+  // === JAVÍTOTT SZINKRONIZÁCIÓ - FIX 404 KEZELÉS ===
   useEffect(() => {
     if (!roomId || view === 'MENU') return;
     
@@ -107,8 +107,26 @@ export default function App() {
       
       try {
         const res = await fetch(`${BACKEND_URL}?roomId=${roomId}`);
+        
+        // ⚠️ FIX: Először ellenőrizzük a HTTP státuszt
         if (!res.ok) {
-          console.warn("Szerver nem elérhető");
+          // 404-es hiba esetén a szoba nem létezik
+          if (res.status === 404) {
+            console.log("Szoba nem található (404)");
+            // NE dobjunk hibát LOBBY-ban, mert ott lehet hogy épp most jött létre
+            if (view !== 'LOBBY') {
+              try {
+                const errorData = await res.json();
+                if (errorData?.error === "Nincs szoba") {
+                  setError("A szoba lejárt vagy törölve lett");
+                  setView('MENU');
+                }
+              } catch (e) {
+                // JSON parse hiba esetén csak logoljuk
+                console.log("Nem sikerült parse-olni a 404 választ");
+              }
+            }
+          }
           return;
         }
         
@@ -117,14 +135,14 @@ export default function App() {
         // SZERVER SPECIFIKUS FIX: Ha a szerver { error: "Nincs szoba" } formátumot ad vissza
         if (data && data.error) {
           console.log("Szerver error:", data.error);
-          if (data.error === "Nincs szoba" && view !== 'MENU') {
+          if (data.error === "Nincs szoba" && view !== 'MENU' && view !== 'LOBBY') {
             setError("A szoba lejárt vagy törölve lett");
             setView('MENU');
           }
           return;
         }
         
-        if (isActive && data) {
+        if (isActive && data && !data.error) {
           setState(data);
           setError(null);
           
@@ -140,11 +158,9 @@ export default function App() {
         }
       } catch (e) {
         console.error("Szinkronizációs hiba:", e);
-        if (isActive) {
-          setError("Szerver kapcsolati hiba");
-        }
+        // Ne zavarjuk a felhasználót ha csak egy sync hiba van
       }
-    }, 1000); // 1 másodperces intervallum
+    }, 2000); // 2 másodperces intervallum (csökkentve a server load miatt)
     
     return () => {
       isActive = false;

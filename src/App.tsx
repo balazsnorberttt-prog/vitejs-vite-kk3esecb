@@ -168,95 +168,98 @@ export default function App() {
     };
   }, [roomId, view]);
 
-  // === JAVÍTOTT POST UPDATE ===
-  const postUpdate = async (update: any) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Mindig küldjük a roomId-t a body-ban is
-      const payload = {
-        roomId: roomId,
-        ...update
-      };
-      
-      const response = await fetch(`${BACKEND_URL}?roomId=${roomId}`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Frissítjük a lokális állapotot is
-      if (data && !data.error) {
-        setState(prev => ({ ...prev, ...data }));
-      }
-      
-      return data;
-    } catch (error: any) {
-      console.error("Update hiba:", error);
-      setError(error.message || "Ismeretlen hiba");
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
+// === JAVÍTOTT POST UPDATE ===
+// 1. lépés: Adj hozzá egy 'customRoomId' paramétert
+const postUpdate = async (update: any, customRoomId?: string) => {
+  setLoading(true);
+  setError(null);
+  
+  // 2. lépés: Használd a paramétert, ha van, különben a state-et
+  const targetId = customRoomId || roomId;
 
-  // === JAVÍTOTT CREATE ROOM ===
-  const createRoom = async () => {
-    if (!myName.trim()) {
-      alert("Add meg a neved!");
-      return;
+  try {
+    const payload = {
+      roomId: targetId, // Itt is a targetId kell
+      ...update
+    };
+    
+    // 3. lépés: Az URL-ben is a targetId legyen
+    const response = await fetch(`${BACKEND_URL}?roomId=${targetId}`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
     
-    setLoading(true);
-    setError(null);
+    const data = await response.json();
     
-    try {
-      const id = Math.floor(1000 + Math.random() * 9000).toString();
-      const newPlayer = {
-        name: myName,
-        score: 0,
-        answers: null,
-        tasks: null,
-        ready: false,
-        isHost: true
-      };
-      
-      const initialState = {
-        players: [newPlayer],
-        currentPhase: 'LOBBY',
-        roomId: id,
-        votingIndex: 0,
-        createdAt: new Date().toISOString()
-      };
-      
-      // Először POST kérés a szervernek
-      const result = await postUpdate(initialState);
-      
-      if (result && !result.error) {
-        setRoomId(id);
-        setRole('HOST');
-        setState(initialState);
-      await new Promise(resolve => setTimeout(resolve, 500));
-        setView('LOBBY');
-      } else {
-        setError("Nem sikerült létrehozni a szobát");
-      }
-    } catch (error) {
-      console.error("Szoba létrehozási hiba:", error);
-      setError("Hiba a szoba létrehozásakor");
-    } finally {
-      setLoading(false);
+    if (data && !data.error) {
+      setState(prev => ({ ...prev, ...data }));
     }
-  };
+    
+    return data;
+  } catch (error: any) {
+    console.error("Update hiba:", error);
+    setError(error.message || "Ismeretlen hiba");
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+};
+
+ // === JAVÍTOTT CREATE ROOM ===
+const createRoom = async () => {
+  if (!myName.trim()) {
+    alert("Add meg a neved!");
+    return;
+  }
+  
+  setLoading(true);
+  setError(null);
+  
+  try {
+    const id = Math.floor(1000 + Math.random() * 9000).toString();
+    const newPlayer = {
+      name: myName,
+      score: 0,
+      answers: null,
+      tasks: null,
+      ready: false,
+      isHost: true
+    };
+    
+    const initialState = {
+      players: [newPlayer],
+      currentPhase: 'LOBBY',
+      roomId: id,
+      votingIndex: 0,
+      createdAt: new Date().toISOString()
+    };
+    
+    // FONTOS: Itt adjuk át az 'id'-t második paraméterként!
+    const result = await postUpdate(initialState, id);
+    
+    if (result && !result.error) {
+      setRoomId(id); // A state beállítása maradhat itt
+      setRole('HOST');
+      setState(initialState);
+      // await new Promise(resolve => setTimeout(resolve, 500)); // Ez a késleltetés nem is feltétlen kell már
+      setView('LOBBY');
+    } else {
+      setError("Nem sikerült létrehozni a szobát");
+    }
+  } catch (error) {
+    console.error("Szoba létrehozási hiba:", error);
+    setError("Hiba a szoba létrehozásakor");
+  } finally {
+    setLoading(false);
+  }
+};
 
   // === JAVÍTOTT JOIN ROOM ===
   const joinRoom = async () => {

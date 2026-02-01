@@ -1,618 +1,770 @@
-// ✅ VÉGLEGES - TISZTA LOGIKA
-// 1. Mindenki válaszol → ready = true
-// 2. Ha mindenki ready → VOTING indítás + ready = false
-// 3. Mindenki szavaz → ready = true
-// 4. Ha mindenki ready → következő játékos VAGY új kör VAGY vége
-
-import { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Float, MeshDistortMaterial } from '@react-three/drei';
+import { OrbitControls, Stars, Sphere, MeshDistortMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 
-const BACKEND_URL = "https://trash-backend.balazsnorberttt.workers.dev";
+// === KONFIGURÁCIÓ ===
+const API_URL = "https://your-worker.workers.dev"; // CSERÉLD LE!
+const POLL_INTERVAL = 500; // Milyen gyakran kérjünk frissítést (ms)
 
-const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@500;700;900&display=swap');
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { margin: 0; background: #000; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: white; touch-action: manipulation; }
-  .app-layer { position: absolute; inset: 0; display: flex; flex-direction: column; z-index: 10; overflow-y: auto; overflow-x: hidden; width: 100vw; }
-  .container { width: 100%; max-width: 600px; margin: 0 auto; padding: 15px; display: flex; flex-direction: column; min-height: 100vh; }
-  .cyber-input { width: 100%; padding: 15px; background: rgba(0,0,0,0.8); border: 2px solid #ff00de; color: #ffdd00; font-family: 'Rajdhani'; font-size: 1.2rem; font-weight: bold; border-radius: 8px; text-align: center; outline: none; margin: 10px 0; text-transform: uppercase; }
-  .btn-action { width: 100%; padding: 20px; background: linear-gradient(90deg, #ff00de, #00f3ff); color: white; font-family: 'Black Ops One'; font-size: 1.5rem; border: none; border-radius: 50px; cursor: pointer; text-transform: uppercase; box-shadow: 0 5px 30px rgba(255,0,222,0.4); text-shadow: 2px 2px 0 black; margin: 10px 0; transition: 0.2s; }
-  .btn-action:active { transform: scale(0.95); }
-  .glass-card { background: rgba(15, 10, 25, 0.9); border: 1px solid rgba(255, 0, 222, 0.4); border-radius: 16px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
-  .task-label { color: #00f3ff; font-weight: 900; letter-spacing: 2px; margin-bottom: 12px; text-transform: uppercase; font-size: 0.9rem; border-bottom: 1px solid #444; padding-bottom: 5px; }
-  .celeb-badge { background: #ff00de; color: white; padding: 8px 12px; border-radius: 6px; font-weight: 900; font-size: 0.9rem; box-shadow: 0 0 10px #ff00de; text-transform: uppercase; display: inline-block; margin: 5px 0; }
-  .highlight { color: #ff00de; font-weight: 900; text-shadow: 0 0 10px #ff00de; }
-  .player-pill { padding: 8px 15px; background: #111; border-radius: 20px; border: 1px solid #ff00de; font-weight: bold; margin: 5px; }
-  .rating-box { margin-top: 10px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 12px; border: 1px dashed #ff00de; }
-  input[type=range] { width: 100%; cursor: pointer; accent-color: #ff00de; height: 30px; }
-  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } }
-`;
+// === 3D BOMBA ===
+function CyberBomb({ urgency, isExploded }) {
+  const meshRef = useRef(null);
+  
+  const color = new THREE.Color().lerpColors(
+    new THREE.Color('#00ff88'), 
+    new THREE.Color('#ff0055'), 
+    urgency
+  );
 
-function CyberSphere({ position }: any) {
-  const meshRef = useRef<THREE.Mesh>(null!);
   useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.elapsedTime * 0.3;
-      meshRef.current.rotation.y = state.clock.elapsedTime * 0.2;
-    }
+    if (isExploded || !meshRef.current) return;
+    const speed = 2 + (urgency * 15); 
+    const scale = 1.6 + Math.sin(state.clock.elapsedTime * speed) * (0.05 + urgency * 0.3);
+    meshRef.current.scale.set(scale, scale, scale);
+    meshRef.current.rotation.y += 0.01 + urgency * 0.05;
   });
+
   return (
-    <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-      <mesh ref={meshRef} position={position}>
-        <sphereGeometry args={[2, 32, 32]} />
-        <MeshDistortMaterial
-          color="#ff00de"
-          attach="material"
-          distort={0.4}
-          speed={2}
-          roughness={0.2}
-          metalness={0.8}
-        />
-      </mesh>
-    </Float>
+    <Sphere ref={meshRef} args={[1, 64, 64]}>
+      <MeshDistortMaterial 
+        color={isExploded ? '#111' : color} 
+        emissive={isExploded ? '#ff2200' : color}
+        emissiveIntensity={isExploded ? 5 : 0.5 + urgency * 2}
+        distort={0.3 + urgency * 0.6} 
+        speed={2 + urgency * 4} 
+      />
+    </Sphere>
   );
 }
 
-function FloatingDebris() {
-  const mesh = useRef<THREE.InstancedMesh>(null!);
-  const count = 80;
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const particles = useMemo(() => Array.from({ length: count }, () => ({
-    pos: [(Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80],
-    rotSpeed: Math.random() * 0.02,
-    scale: 0.3 + Math.random() * 0.8
-  })), []);
-  
-  useFrame((state) => {
-    if (!mesh.current) return;
-    particles.forEach((p, i) => {
-      dummy.position.set(p.pos[0], p.pos[1], p.pos[2]);
-      dummy.rotation.x += p.rotSpeed;
-      dummy.rotation.y += p.rotSpeed;
-      dummy.scale.setScalar(p.scale);
-      dummy.updateMatrix();
-      mesh.current.setMatrixAt(i, dummy.matrix);
-    });
-    mesh.current.instanceMatrix.needsUpdate = true;
-    mesh.current.rotation.y = state.clock.elapsedTime * 0.03;
+// === API HÍVÁSOK ===
+async function createRoom(playerName) {
+  const res = await fetch(`${API_URL}/create-room`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerName })
   });
-  
-  return (
-    <instancedMesh ref={mesh} args={[undefined, undefined, count]}>
-      <octahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial color="#00f3ff" wireframe />
-    </instancedMesh>
-  );
+  return res.json();
 }
 
-const TRASH_CELEBS = ["Tóth Gabi", "Alekosz", "Varga Irén", "Berki szelleme", "Győzike", "Orbán Viktor", "Pumped Gabo", "PSG Ogli", "Zámbó Jimmy", "Kiszel Tünde", "G.w.M", "Szabyest", "Deutsch Tamás", "Varga Judit", "Lakatos Brendon", "Gyurcsány Ferenc", "Németh Szilárd", "Whisper Ton", "Bartos Cs. István", "Fekete Pákó"];
-const SITUATIONS = [
-  "A Blahán {WHO} éppen ...-t csinál a szökőkútban.",
-  "A Parlamentben {WHO} ...-al keni be magát meztelenül az oltár előtt.",
-  "A ravatalozóban {WHO} véletlenül elejtett egy ...-t a koporsóba.",
-  "Az OnlyFans oldalán {WHO} éppen egy ...-t dugott a fülébe.",
-  "A Híradóban bemondták, hogy {WHO} otthonában egy óriási ...-t találtak.",
-  "A Sziget fesztiválon {WHO} a toi-toi vécéből ...-t dobált a tömegbe."
-];
-const QUESTIONS = [
-  "Maszturbálás közben véletlenül ezt kiabáltad ki az ablakon:", 
-  "A proktológus benyúlt, ezt súgtad oda neki halkan:", 
-  "Ezt írnád a saját sírkövedre utolsó üzenetként:",
-  "Mit mondanál, ha Orbán Viktor meztelenül kopogna nálad éjfélkor?",
-  "Mit súgnál Putyin fülébe, ha te lennél a tolmácsa?"
-];
-const TASK4_PROMPTS = [
-  "Tóth Gabi kedvenc szexjátéka:",
-  "Orbán Viktor titkos hobbija:",
-  "Alekosz kedvenc étele:",
-  "Mit tart Győzike a WC-ben:",
-  "Pumped Gabo mit súg a tükörnek:",
-  "Varga Irén mit csinál egyedül éjszaka:",
-  "Mit súg Berki szelleme füledbe:",
-  "PSG Ogli mit dugott a mikróba:",
-  "Amit Kiszel Tünde soha nem mondana ki:",
-  "Mit kerestek Németh Szilárd fürdőszobájában:"
-];
-const LETTERS = ["A", "B", "D", "E", "F", "G", "H", "K", "L", "M", "N", "P", "R", "S", "T", "V", "Z"];
+async function joinRoom(roomId, playerName) {
+  const res = await fetch(`${API_URL}/join-room`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId, playerName })
+  });
+  return res.json();
+}
 
-const generateTasks = () => {
-  const rand = (a: any[]): any => a[Math.floor(Math.random() * a.length)];
-  const getLetters = () => `${rand(LETTERS)} - ${rand(LETTERS)} - ${rand(LETTERS)}`;
-  return {
-    t1: { text: rand(SITUATIONS).replace("{WHO}", `<span class="highlight">${rand(TRASH_CELEBS)}</span>`), letters: getLetters() },
-    t2: { text: rand(QUESTIONS), letters: getLetters() },
-    t3: { celebs: [rand(TRASH_CELEBS), rand(TRASH_CELEBS), rand(TRASH_CELEBS)] },
-    t4: { prompt: rand(TASK4_PROMPTS), letters: getLetters() }
-  };
-};
+async function getRoom(roomId, playerName) {
+  const res = await fetch(`${API_URL}/get-room?roomId=${roomId}&playerName=${playerName}`);
+  return res.json();
+}
 
-const getVotingPlayers = (players: any[]) => {
-  if (players.length <= 6) return players;
-  const shuffled = [...players].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 6);
-};
+async function toggleReady(roomId, playerName) {
+  const res = await fetch(`${API_URL}/toggle-ready`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId, playerName })
+  });
+  return res.json();
+}
 
-const needsDoubleWeight = (votingPlayers: any[], index: number) => {
-  if (votingPlayers.length % 2 === 0) return false;
-  return index === votingPlayers.length - 1;
-};
+async function startGame(roomId, playerName) {
+  const res = await fetch(`${API_URL}/start-game`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId, playerName })
+  });
+  return res.json();
+}
 
+async function submitAnswer(roomId, playerName, answer) {
+  const res = await fetch(`${API_URL}/submit-answer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId, playerName, answer })
+  });
+  return res.json();
+}
+
+async function restartGame(roomId, playerName) {
+  const res = await fetch(`${API_URL}/restart-game`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId, playerName })
+  });
+  return res.json();
+}
+
+async function leaveRoom(roomId, playerName) {
+  const res = await fetch(`${API_URL}/leave-room`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId, playerName })
+  });
+  return res.json();
+}
+
+// === FŐ ALKALMAZÁS ===
 export default function App() {
-  const [view, setView] = useState('MENU');
-  const [role, setRole] = useState<'HOST' | 'CLIENT' | null>(null);
+  const [screen, setScreen] = useState('MENU'); // MENU, LOBBY, PLAYING, GAME_OVER
+  const [playerName, setPlayerName] = useState('');
   const [roomId, setRoomId] = useState('');
-  const [myName, setMyName] = useState('');
-  const [state, setState] = useState<any>(null);
-  const [answers, setAnswers] = useState<any>({ t1: "", t2: "", t3_1: "", t3_2: "", t4: "" });
-  const [myVote, setMyVote] = useState(5);
-  const [votingIndex, setVotingIndex] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState('');
+  const [roomData, setRoomData] = useState(null);
+  const [input, setInput] = useState('');
+  const [error, setError] = useState('');
+  const [timeLeft, setTimeLeft] = useState(15);
+  
+  const pollingRef = useRef(null);
 
-  // ✅ TISZTA SYNC LOGIKA
+  // Polling - automatikus frissítés
   useEffect(() => {
-    if (!roomId || view === 'MENU') return;
-    
-    let isActive = true;
-    
-    const syncInterval = setInterval(async () => {
-      if (!isActive) return;
-      
+    if (!roomId || !playerName || screen === 'MENU') {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+      return;
+    }
+
+    const poll = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}?roomId=${roomId}`);
-        if (!res.ok) return;
-        
-        const data = await res.json();
-        if (!data || data.error) return;
-        
-        if (isActive) {
-          setState(data);
-          setError(null);
+        const data = await getRoom(roomId, playerName);
+        if (data.success) {
+          setRoomData(data.roomData);
           
-          // ✅ EGYSZERŰ: Mindig követjük a backend phase-t (kivéve MENU)
-          if (data.currentPhase && data.currentPhase !== view && view !== 'MENU') {
-            console.log("🔄 SYNC:", view, "→", data.currentPhase);
-            setView(data.currentPhase);
+          // Automatikus screen váltás
+          if (data.roomData.phase === 'LOBBY' && screen !== 'LOBBY') {
+            setScreen('LOBBY');
           }
-          
-          if (data.votingIndex !== undefined) {
-            setVotingIndex(data.votingIndex);
+          if (data.roomData.phase === 'PLAYING' && screen !== 'PLAYING') {
+            setScreen('PLAYING');
+            setInput('');
+            setTimeout(() => {
+              document.getElementById('gameInput')?.focus();
+            }, 100);
           }
-        }
-      } catch (e) {
-        console.error("Sync error:", e);
-      }
-    }, 1000);
-    
-    return () => {
-      isActive = false;
-      clearInterval(syncInterval);
-    };
-  }, [roomId, view]);
-
-  const postUpdate = async (update: any, customRoomId?: string) => {
-    setLoading(true);
-    try {
-      const targetId = customRoomId || roomId;
-      const response = await fetch(`${BACKEND_URL}?roomId=${targetId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomId: targetId, ...update })
-      });
-      
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      
-      if (data && !data.error) {
-        setState(data);
-      }
-      return data;
-    } catch (error: any) {
-      console.error("Update error:", error);
-      setError(error.message);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createRoom = async () => {
-    if (!myName.trim()) return alert("Add meg a neved!");
-    
-    try {
-      const id = Math.floor(1000 + Math.random() * 9000).toString();
-      const initialState = {
-        players: [{
-          name: myName,
-          score: 0,
-          answers: null,
-          tasks: null,
-          ready: false,
-          isHost: true
-        }],
-        currentPhase: 'LOBBY',
-        roomId: id,
-        votingIndex: 0,
-        votingPlayers: [],
-        currentRound: 0,
-        totalRounds: 3,
-        createdAt: new Date().toISOString()
-      };
-      
-      await postUpdate(initialState, id);
-      setRoomId(id);
-      setRole('HOST');
-      setView('LOBBY');
-    } catch (error) {
-      console.error("Create room error:", error);
-    }
-  };
-
-  const joinRoom = async () => {
-    if (!roomId.trim() || !myName.trim()) return alert("Add meg a szoba kódot és a neved!");
-    
-    try {
-      const res = await fetch(`${BACKEND_URL}?roomId=${roomId}`);
-      if (!res.ok) return alert("Nincs ilyen szoba!");
-      
-      const data = await res.json();
-      if (data.error) return alert("Nincs ilyen szoba!");
-      if (data.players?.some((p: any) => p.name === myName)) {
-        return alert("Ez a név már foglalt!");
-      }
-      
-      const newPlayer = {
-        name: myName,
-        score: 0,
-        answers: null,
-        tasks: null,
-        ready: false,
-        isHost: false
-      };
-      
-      await postUpdate({ players: [...(data.players || []), newPlayer] });
-      setRole('CLIENT');
-      setView('LOBBY');
-    } catch (error) {
-      alert("Hiba a csatlakozásnál!");
-    }
-  };
-
-  const startRound = async () => {
-    if (!state || role !== 'HOST') return;
-    
-    try {
-      const updatedPlayers = state.players.map((player: any) => ({
-        ...player,
-        tasks: generateTasks(),
-        answers: null,
-        ready: false // ✅ NULLÁZÁS
-      }));
-      
-      await postUpdate({ 
-        players: updatedPlayers,
-        votingPlayers: getVotingPlayers(updatedPlayers),
-        currentPhase: 'PLAYING',
-        currentRound: (state.currentRound || 0) + 1,
-        votingIndex: 0
-      });
-      
-      setAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4: "" });
-    } catch (error) {
-      console.error("Start round error:", error);
-    }
-  };
-
-  // ✅ TISZTA VÁLASZ LOGIKA
-  const submitAnswers = async () => {
-    if (!state || !myName) return;
-    
-    console.log("📝 Submitting answers...");
-    
-    try {
-      // 1️⃣ Saját ready flag állítása
-      const updatedPlayers = state.players.map((p: any) => 
-        p.name === myName 
-          ? { ...p, answers: answers, ready: true }
-          : p
-      );
-      
-      // 2️⃣ Ellenőrzés: mindenki ready?
-      const allReady = updatedPlayers.every((p: any) => p.ready);
-      
-      console.log("✅ All ready?", allReady);
-      
-      if (allReady) {
-        // 3️⃣ HA MINDENKI READY → VOTING + READY NULLÁZÁS
-        const playersForVoting = updatedPlayers.map(p => ({ ...p, ready: false }));
-        
-        await postUpdate({
-          players: playersForVoting,
-          currentPhase: 'VOTING',
-          votingIndex: 0
-        });
-        
-        console.log("🎯 Started VOTING");
-      } else {
-        // 4️⃣ MÉG NEM MINDENKI → csak frissítés
-        await postUpdate({ players: updatedPlayers });
-        setView('WAITING');
-        console.log("⏳ Waiting for others...");
-      }
-    } catch (error) {
-      console.error("Submit answers error:", error);
-    }
-  };
-
-  // ✅ TISZTA SZAVAZÁS LOGIKA
-  const submitVote = async () => {
-    if (!state || !state.votingPlayers || votingIndex >= state.votingPlayers.length) return;
-    
-    console.log("🗳️ Submitting vote...");
-    
-    try {
-      const targetPlayer = state.votingPlayers[votingIndex];
-      const isDoubleWeighted = needsDoubleWeight(state.votingPlayers, votingIndex);
-      const actualPoints = isDoubleWeighted ? myVote * 2 : myVote;
-      
-      // 1️⃣ Pontok hozzáadása + ready flag
-      const updatedPlayers = state.players.map((p: any) => {
-        if (p.name === targetPlayer.name) {
-          return { ...p, score: (p.score || 0) + actualPoints };
-        }
-        if (p.name === myName) {
-          return { ...p, ready: true };
-        }
-        return p;
-      });
-      
-      // 2️⃣ Mindenki szavazott?
-      const allVoted = updatedPlayers.every((p: any) => p.ready);
-      
-      console.log("✅ All voted?", allVoted);
-      
-      if (allVoted) {
-        const nextIndex = votingIndex + 1;
-        const votingComplete = nextIndex >= state.votingPlayers.length;
-        
-        if (votingComplete) {
-          // 3️⃣ VOTING VÉGE
-          const nextRound = state.currentRound + 1;
-          const isGameOver = nextRound > state.totalRounds;
-          
-          if (isGameOver) {
-            // 🏆 JÁTÉK VÉGE
-            await postUpdate({
-              players: updatedPlayers.map(p => ({ ...p, ready: false })),
-              currentPhase: 'LEADERBOARD'
-            });
-            console.log("🏆 Game over!");
-          } else {
-            // 🔄 ÚJ KÖR
-            const newPlayers = updatedPlayers.map((p: any) => ({
-              ...p,
-              tasks: generateTasks(),
-              answers: null,
-              ready: false
-            }));
-            
-            await postUpdate({
-              players: newPlayers,
-              votingPlayers: getVotingPlayers(newPlayers),
-              currentPhase: 'PLAYING',
-              currentRound: nextRound,
-              votingIndex: 0
-            });
-            
-            setAnswers({ t1: "", t2: "", t3_1: "", t3_2: "", t4: "" });
-            setMyVote(5);
-            console.log("🔄 New round started!");
+          if (data.roomData.phase === 'GAME_OVER' && screen !== 'GAME_OVER') {
+            setScreen('GAME_OVER');
           }
         } else {
-          // 4️⃣ KÖVETKEZŐ JÁTÉKOS
-          await postUpdate({
-            players: updatedPlayers.map(p => ({ ...p, ready: false })),
-            votingIndex: nextIndex
-          });
-          
-          setMyVote(5);
-          console.log("➡️ Next player");
+          setError(data.error || 'Ismeretlen hiba');
         }
-      } else {
-        // 5️⃣ MÉG NEM MINDENKI SZAVAZOTT
-        await postUpdate({ players: updatedPlayers });
-        setView('WAITING_VOTE');
-        console.log("⏳ Waiting for votes...");
+      } catch (err) {
+        console.error('Polling error:', err);
       }
-    } catch (error) {
-      console.error("Submit vote error:", error);
+    };
+
+    poll(); // Azonnal
+    pollingRef.current = setInterval(poll, POLL_INTERVAL);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [roomId, playerName, screen]);
+
+  // Időszámláló (playing közben)
+  useEffect(() => {
+    if (screen !== 'PLAYING' || !roomData || !roomData.startTime) return;
+
+    const updateTime = () => {
+      const elapsed = (Date.now() - roomData.startTime) / 1000;
+      const remaining = Math.max(0, roomData.maxTime - elapsed);
+      setTimeLeft(remaining);
+    };
+
+    updateTime();
+    const timer = setInterval(updateTime, 100);
+
+    return () => clearInterval(timer);
+  }, [screen, roomData]);
+
+  // === MENÜ AKCIÓK ===
+  const handleCreateRoom = async () => {
+    if (playerName.trim().length < 2) {
+      setError('Add meg a neved (min 2 karakter)');
+      return;
+    }
+    
+    setError('');
+    try {
+      const data = await createRoom(playerName.trim());
+      if (data.success) {
+        setRoomId(data.roomId);
+        setRoomData(data.roomData);
+        setScreen('LOBBY');
+      } else {
+        setError(data.error || 'Hiba történt');
+      }
+    } catch (err) {
+      setError('Nem sikerült kapcsolódni a szerverhez');
     }
   };
 
-  const myPlayer = state?.players?.find((p: any) => p.name === myName);
-  const targetPlayer = state?.votingPlayers?.[votingIndex];
-  const isDoubleWeighted = state?.votingPlayers ? needsDoubleWeight(state.votingPlayers, votingIndex) : false;
+  const handleJoinRoom = async () => {
+    if (playerName.trim().length < 2) {
+      setError('Add meg a neved (min 2 karakter)');
+      return;
+    }
+    if (joinCode.trim().length !== 4) {
+      setError('A szobakód 4 számjegyű');
+      return;
+    }
+
+    setError('');
+    try {
+      const data = await joinRoom(joinCode.trim(), playerName.trim());
+      if (data.success) {
+        setRoomId(joinCode.trim());
+        setRoomData(data.roomData);
+        setScreen('LOBBY');
+      } else {
+        setError(data.error || 'Hiba történt');
+      }
+    } catch (err) {
+      setError('Nem sikerült csatlakozni');
+    }
+  };
+
+  // === LOBBY AKCIÓK ===
+  const handleToggleReady = async () => {
+    try {
+      const data = await toggleReady(roomId, playerName);
+      if (data.success) {
+        setRoomData(data.roomData);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleStartGame = async () => {
+    try {
+      const data = await startGame(roomId, playerName);
+      if (data.success) {
+        setRoomData(data.roomData);
+        setScreen('PLAYING');
+        setInput('');
+        setTimeout(() => {
+          document.getElementById('gameInput')?.focus();
+        }, 100);
+      } else {
+        setError(data.error || 'Nem sikerült indítani');
+      }
+    } catch (err) {
+      setError('Hiba a játék indításánál');
+    }
+  };
+
+  // === JÁTÉK AKCIÓK ===
+  const handleSubmitAnswer = async (e) => {
+    e.preventDefault();
+    if (input.trim().length < 2) return;
+
+    try {
+      const data = await submitAnswer(roomId, playerName, input.trim());
+      
+      if (data.gameOver) {
+        setRoomData(data.roomData);
+        setScreen('GAME_OVER');
+      } else if (data.newRound) {
+        setRoomData(data.roomData);
+        setInput('');
+        setTimeout(() => {
+          document.getElementById('gameInput')?.focus();
+        }, 50);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // === GAME OVER AKCIÓK ===
+  const handleRestart = async () => {
+    try {
+      const data = await restartGame(roomId, playerName);
+      if (data.success) {
+        setRoomData(data.roomData);
+        setScreen('LOBBY');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleLeave = async () => {
+    try {
+      await leaveRoom(roomId, playerName);
+      setScreen('MENU');
+      setRoomId('');
+      setRoomData(null);
+      setPlayerName('');
+      setJoinCode('');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // === SEGÉD VÁLTOZÓK ===
+  const myPlayer = roomData?.players?.find(p => p.name === playerName);
+  const isHost = myPlayer?.isHost || false;
+  const allReady = roomData?.players?.every(p => p.ready) || false;
+  const urgency = roomData?.maxTime ? Math.max(0, 1 - (timeLeft / roomData.maxTime)) : 0;
 
   return (
     <>
-      <style>{GLOBAL_CSS}</style>
-      <div className="app-layer">
-        <div style={{position:'absolute', inset:0, zIndex:-1}}>
-          <Canvas camera={{ position: [0, 0, 20], fov: 75 }}>
-            <Stars count={8000} factor={6} saturation={0.5} fade speed={1} />
-            <ambientLight intensity={0.3} />
-            <pointLight position={[10, 10, 10]} color="#00f3ff" intensity={3} />
-            <pointLight position={[-10, -10, -10]} color="#ff00de" intensity={2} />
-            <CyberSphere position={[5, 2, -5]} />
-            <CyberSphere position={[-5, -2, -8]} />
-            <Float>
-              <FloatingDebris />
-            </Float>
-          </Canvas>
-        </div>
+      {/* 3D HÁTTÉR */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
+        <Canvas camera={{ position: [0, 0, 6] }}>
+          <ambientLight intensity={0.5} />
+          <pointLight position={[10, 10, 10]} intensity={1} color="#00f3ff" />
+          <Stars radius={100} depth={50} count={3000} factor={4} fade />
+          <CyberBomb urgency={urgency} isExploded={screen === 'GAME_OVER'} />
+          <OrbitControls enableZoom={false} />
+        </Canvas>
+      </div>
 
-        {error && (
-          <div style={{
-            position: 'fixed',
-            top: '10px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(255, 0, 0, 0.9)',
-            color: 'white',
-            padding: '10px 20px',
-            borderRadius: '10px',
-            zIndex: 1000
+      {/* UI */}
+      <div style={{ 
+        position: 'fixed', 
+        inset: 0, 
+        zIndex: 1, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        pointerEvents: 'none', 
+        color: 'white', 
+        textAlign: 'center',
+        fontFamily: 'monospace'
+      }}>
+        
+        {/* ==================== MENÜ ==================== */}
+        {screen === 'MENU' && (
+          <div style={{ 
+            pointerEvents: 'auto', 
+            background: 'rgba(0,0,0,0.85)', 
+            padding: '40px', 
+            borderRadius: '20px', 
+            border: '2px solid #00f3ff',
+            boxShadow: '0 0 30px rgba(0,243,255,0.5)'
           }}>
-            {error}
-            <button onClick={() => setError(null)} style={{marginLeft:'10px',background:'white',color:'red',border:'none',borderRadius:'5px',padding:'2px 8px',cursor:'pointer'}}>✕</button>
-          </div>
-        )}
-
-        {view === 'MENU' && (
-          <div className="container" style={{justifyContent:'center'}}>
-            <h1 style={{fontFamily:'Black Ops One', fontSize:'3.5rem', textAlign:'center', textShadow:'0 0 20px #ff00de'}}>TRASH UNIVERSE</h1>
-            <div className="glass-card">
-              <input className="cyber-input" placeholder="NEVED" value={myName} onChange={e => setMyName(e.target.value)} disabled={loading} />
-              <button className="btn-action" onClick={createRoom} disabled={loading}>{loading ? 'FELDOLGOZÁS...' : 'ÚJ JÁTÉK'}</button>
-              <div style={{height:'1px', background:'#444', margin:'20px 0'}} />
-              <input className="cyber-input" placeholder="SZOBA KÓD (4 szám)" value={roomId} onChange={e => setRoomId(e.target.value)} disabled={loading} />
-              <button className="btn-action" style={{background:'#222'}} onClick={joinRoom} disabled={loading}>{loading ? 'CSATLAKOZÁS...' : 'CSATLAKOZÁS'}</button>
+            <h1 style={{ 
+              color: '#00f3ff', 
+              margin: '0 0 30px 0', 
+              fontSize: '3rem',
+              textShadow: '0 0 20px #00f3ff'
+            }}>
+              PULZUS ONLINE
+            </h1>
+            
+            <input 
+              placeholder="NEVED" 
+              value={playerName} 
+              onChange={e => setPlayerName(e.target.value)}
+              className="cyber-input"
+              style={{ 
+                width: '250px', 
+                marginBottom: '20px',
+                padding: '12px',
+                fontSize: '1rem',
+                background: 'rgba(0,0,0,0.6)',
+                border: '1px solid #00f3ff',
+                borderRadius: '5px',
+                color: 'white',
+                outline: 'none'
+              }}
+              maxLength={20}
+            />
+            
+            <div>
+              <button 
+                onClick={handleCreateRoom} 
+                className="cyber-btn"
+                style={{
+                  padding: '12px 30px',
+                  fontSize: '1rem',
+                  background: '#00f3ff',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  marginBottom: '10px'
+                }}
+              >
+                ÚJ SZOBA LÉTREHOZÁSA
+              </button>
             </div>
-          </div>
-        )}
+            
+            <div style={{ margin: '20px 0', color: '#888' }}>- VAGY -</div>
+            
+            <input 
+              placeholder="SZOBAKÓD (pl. 1234)" 
+              value={joinCode} 
+              onChange={e => setJoinCode(e.target.value)}
+              className="cyber-input"
+              style={{ 
+                width: '200px', 
+                marginBottom: '10px',
+                padding: '12px',
+                fontSize: '1rem',
+                background: 'rgba(0,0,0,0.6)',
+                border: '1px solid #888',
+                borderRadius: '5px',
+                color: 'white',
+                outline: 'none',
+                textAlign: 'center'
+              }}
+              maxLength={4}
+            />
+            
+            <div>
+              <button 
+                onClick={handleJoinRoom} 
+                className="cyber-btn"
+                style={{
+                  padding: '12px 30px',
+                  fontSize: '1rem',
+                  background: '#444',
+                  color: 'white',
+                  border: '1px solid #888',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                CSATLAKOZÁS
+              </button>
+            </div>
 
-        {view === 'LOBBY' && state && (
-          <div className="container">
-            <h1 style={{fontSize:'3rem', textAlign:'center', color:'#00f3ff'}}>SZOBA: {roomId}</h1>
-            <div className="glass-card">
-              <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'10px'}}>
-                {state.players?.map((p: any, i: number) => (
-                  <div key={i} className="player-pill" style={{background: p.name === myName ? 'linear-gradient(135deg, #ff00de, #9900cc)' : '#111', borderColor: p.name === myName ? '#ff00de' : '#555'}}>
-                    {p.name} {p.name === myName && '(TE)'}
-                  </div>
-                ))}
+            {error && (
+              <div style={{ 
+                marginTop: '20px', 
+                color: '#ff0055', 
+                background: 'rgba(255,0,85,0.1)',
+                padding: '10px',
+                borderRadius: '5px',
+                border: '1px solid #ff0055'
+              }}>
+                {error}
               </div>
-              {(!state.players || state.players.length < 2) && (
-                <div style={{textAlign:'center',marginTop:'15px',padding:'10px',background:'rgba(255,0,222,0.1)',borderRadius:'8px',border:'1px dashed #ff00de'}}>
-                  ⚠️ Várj még {2 - (state.players?.length || 0)} játékost!
-                </div>
-              )}
+            )}
+          </div>
+        )}
+
+        {/* ==================== LOBBY ==================== */}
+        {screen === 'LOBBY' && roomData && (
+          <div style={{ 
+            pointerEvents: 'auto', 
+            background: 'rgba(0,0,0,0.85)', 
+            padding: '40px', 
+            borderRadius: '20px',
+            border: '2px solid #00f3ff',
+            minWidth: '400px'
+          }}>
+            <h2 style={{ color: '#00f3ff', marginTop: 0 }}>
+              {isHost ? '🎮 TE VAGY A HOST' : '🎮 SZOBA'}
+            </h2>
+            
+            <div style={{ 
+              fontSize: '3rem', 
+              color: '#ff0055', 
+              margin: '20px 0',
+              letterSpacing: '10px',
+              textShadow: '0 0 20px #ff0055'
+            }}>
+              {roomId}
             </div>
-            {role === 'HOST' && state.players && state.players.length >= 2 && (
-              <button className="btn-action" onClick={startRound} disabled={loading}>
-                {loading ? 'INDÍTÁS...' : `JÁTÉK INDÍTÁSA (${state.players.length} JÁTÉKOS)`}
+
+            <div style={{ marginBottom: '20px', color: '#aaa' }}>
+              Játékosok ({roomData.players.length}/10):
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              {roomData.players.map((player, i) => (
+                <div 
+                  key={i} 
+                  style={{ 
+                    padding: '8px', 
+                    margin: '5px 0',
+                    background: player.name === playerName ? 'rgba(0,243,255,0.2)' : 'rgba(255,255,255,0.05)',
+                    borderRadius: '5px',
+                    border: `1px solid ${player.ready ? '#00ff88' : '#444'}`
+                  }}
+                >
+                  {player.isHost && '👑 '}
+                  {player.name}
+                  {player.ready && ' ✓'}
+                </div>
+              ))}
+            </div>
+
+            <button 
+              onClick={handleToggleReady}
+              style={{
+                padding: '12px 30px',
+                fontSize: '1rem',
+                background: myPlayer?.ready ? '#00ff88' : '#444',
+                color: myPlayer?.ready ? '#000' : 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                marginBottom: '10px',
+                width: '100%'
+              }}
+            >
+              {myPlayer?.ready ? '✓ READY' : 'NEM READY'}
+            </button>
+
+            {isHost && (
+              <button 
+                onClick={handleStartGame}
+                disabled={!allReady || roomData.players.length < 1}
+                style={{
+                  padding: '12px 30px',
+                  fontSize: '1rem',
+                  background: allReady ? '#ff0055' : '#333',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: allReady ? 'pointer' : 'not-allowed',
+                  fontWeight: 'bold',
+                  width: '100%',
+                  opacity: allReady ? 1 : 0.5
+                }}
+              >
+                JÁTÉK INDÍTÁSA
               </button>
             )}
-            {role === 'CLIENT' && <div style={{textAlign:'center', color:'#888', marginTop:'20px'}}>Várakozás a host-ra...</div>}
-            <button className="btn-action" style={{background:'#222', marginTop:'10px'}} onClick={() => { setView('MENU'); setRole(null); }}>VISSZA</button>
-          </div>
-        )}
 
-        {view === 'PLAYING' && myPlayer?.tasks && (
-          <div className="container">
-            <div style={{padding:'15px 20px',background:'rgba(0,0,0,0.9)',borderBottom:'2px solid #ff00de',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:100}}>
-              <span style={{fontWeight:'bold'}}>{myName}</span>
-              <span style={{fontFamily:'Black Ops One', color:'#ff00de'}}>KÖR: {state.currentRound}/{state.totalRounds}</span>
-            </div>
-            
-            <div className="glass-card">
-              <div className="task-label">1. SZITUÁCIÓ (Betűk: {myPlayer.tasks.t1.letters})</div>
-              <div style={{fontSize:'1.2rem', marginBottom:'15px'}} dangerouslySetInnerHTML={{__html: myPlayer.tasks.t1.text.replace("...", "_______")}} />
-              <input className="cyber-input" placeholder="Ide a választ..." value={answers.t1} onChange={e => setAnswers({...answers, t1: e.target.value})} />
-            </div>
+            {!isHost && !allReady && (
+              <div style={{ color: '#888', fontSize: '0.9rem', marginTop: '10px' }}>
+                Várd meg, hogy mindenki ready legyen...
+              </div>
+            )}
 
-            <div className="glass-card">
-              <div className="task-label">2. KÍN-PAD (Betűk: {myPlayer.tasks.t2.letters})</div>
-              <div style={{fontSize:'1.2rem', marginBottom:'15px'}}>{myPlayer.tasks.t2.text}</div>
-              <input className="cyber-input" placeholder="Vallomásod..." value={answers.t2} onChange={e => setAnswers({...answers, t2: e.target.value})} />
-            </div>
-
-            <div className="glass-card">
-              <div className="task-label">3. SZTORILÁNC</div>
-              <div className="celeb-badge">{myPlayer.tasks.t3.celebs[0]}</div>
-              <input className="cyber-input" placeholder="Mit tett vele?" value={answers.t3_1} onChange={e => setAnswers({...answers, t3_1: e.target.value})} />
-              <div className="celeb-badge" style={{background:'#00f3ff', color:'black'}}>{myPlayer.tasks.t3.celebs[1]}</div>
-              <input className="cyber-input" placeholder="És aztán?" value={answers.t3_2} onChange={e => setAnswers({...answers, t3_2: e.target.value})} />
-              <div className="celeb-badge" style={{background:'#ffdd00', color:'black'}}>{myPlayer.tasks.t3.celebs[2]}</div>
-            </div>
-
-            <div className="glass-card">
-              <div className="task-label">4. TRASH SZÓTÁR</div>
-              <div style={{fontSize:'1.2rem', marginBottom:'10px', color:'#ff00de'}}>{myPlayer.tasks.t4.prompt}</div>
-              <div style={{fontSize:'2rem', textAlign:'center', color:'#00f3ff', fontWeight:'bold', marginBottom:'15px', letterSpacing:'10px'}}>{myPlayer.tasks.t4.letters}</div>
-              <input className="cyber-input" placeholder="Pl: Barna Rakott Cici" value={answers.t4} onChange={e => setAnswers({...answers, t4: e.target.value})} />
-            </div>
-            
-            <button className="btn-action" onClick={submitAnswers} disabled={loading || !answers.t1.trim() || !answers.t2.trim() || !answers.t3_1.trim() || !answers.t3_2.trim() || !answers.t4.trim()}>
-              {loading ? 'BEKÜLDÉS...' : 'KÉSZ VAGYOK!'}
+            <button 
+              onClick={handleLeave}
+              style={{
+                marginTop: '20px',
+                padding: '8px 20px',
+                fontSize: '0.9rem',
+                background: 'transparent',
+                color: '#888',
+                border: '1px solid #444',
+                borderRadius: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              KILÉPÉS
             </button>
           </div>
         )}
 
-        {view === 'VOTING' && targetPlayer && (
-          <div className="container">
-            <div style={{textAlign:'center', marginBottom:'20px'}}>
-              <div style={{color:'#888', fontSize:'0.9rem'}}>KÖR {state.currentRound}/{state.totalRounds}</div>
-              <h1 style={{color:'#ff00de', fontSize:'2.5rem', margin:'10px 0'}}>{targetPlayer.name}</h1>
-              <div style={{color:'#888'}}>{votingIndex + 1} / {state.votingPlayers.length} játékos értékelve</div>
-              {isDoubleWeighted && <div style={{color:'#ffdd00', fontWeight:'bold', marginTop:'5px'}}>⚠️ DUPLA SÚLY!</div>}
-            </div>
-            
-            <div className="glass-card">
-              <div className="task-label">SZITUÁCIÓ:</div>
-              <div style={{color:'#ffdd00', fontSize:'1.3rem', padding:'10px', minHeight:'80px'}}>{targetPlayer.answers?.t1 || "Nem válaszolt"}</div>
-            </div>
-            
-            <div className="glass-card">
-              <div className="task-label">VALLOMÁS:</div>
-              <div style={{color:'#00f3ff', fontSize:'1.3rem', padding:'10px', minHeight:'80px'}}>{targetPlayer.answers?.t2 || "Nem válaszolt"}</div>
+        {/* ==================== PLAYING ==================== */}
+        {screen === 'PLAYING' && roomData && (
+          <div style={{ pointerEvents: 'auto', width: '90%', maxWidth: '600px' }}>
+            <div style={{ marginBottom: '10px', color: '#888' }}>
+              Kör: {roomData.currentRound} | Te: {myPlayer?.score || 0} pont
             </div>
 
-            <div className="glass-card">
-              <div className="task-label">TRASH SZÓTÁR:</div>
-              <div style={{color:'#ff00de', fontSize:'1.1rem', padding:'10px', minHeight:'60px'}}>{targetPlayer.answers?.t4 || "Nem válaszolt"}</div>
-            </div>
+            <h3 style={{ color: '#aaa', fontSize: '1rem', margin: '10px 0' }}>
+              KATEGÓRIA
+            </h3>
+            <h2 style={{ 
+              color: '#ffdd00', 
+              fontSize: '2rem', 
+              textShadow: '0 0 20px orange',
+              margin: '10px 0 20px 0'
+            }}>
+              {roomData.category}
+            </h2>
             
-            {targetPlayer.name !== myName ? (
-              <div className="rating-box">
-                <div style={{textAlign:'center', fontWeight:'bold', color:'#00f3ff', fontSize:'1.5rem'}}>
-                  PONT: {myVote} {isDoubleWeighted && `× 2 = ${myVote * 2}`}
-                </div>
-                <input type="range" min="1" max="10" value={myVote} onChange={e => setMyVote(parseInt(e.target.value))} />
-                <button className="btn-action" style={{marginTop:'15px'}} onClick={submitVote} disabled={loading}>
-                  {loading ? 'SZAVAZÁS...' : 'SZAVAZOK'}
-                </button>
+            <div style={{ 
+              width: '100%', 
+              height: '12px', 
+              background: '#222', 
+              margin: '20px 0', 
+              borderRadius: '6px',
+              overflow: 'hidden',
+              border: '1px solid #444'
+            }}>
+              <div style={{ 
+                width: `${(timeLeft / roomData.maxTime) * 100}%`, 
+                height: '100%', 
+                background: timeLeft < 3 ? '#ff0055' : '#00f3ff',
+                transition: 'width 0.1s linear',
+                boxShadow: timeLeft < 3 ? '0 0 20px #ff0055' : '0 0 20px #00f3ff'
+              }} />
+            </div>
+
+            <div style={{ 
+              fontSize: '2rem', 
+              color: timeLeft < 3 ? '#ff0055' : '#00f3ff',
+              marginBottom: '20px',
+              fontWeight: 'bold'
+            }}>
+              {timeLeft.toFixed(1)}s
+            </div>
+
+            <form onSubmit={handleSubmitAnswer}>
+              <input 
+                id="gameInput"
+                value={input} 
+                onChange={e => setInput(e.target.value)} 
+                autoComplete="off"
+                placeholder="ÍRJ BE VALAMIT..."
+                style={{
+                  width: '100%',
+                  padding: '15px',
+                  fontSize: '1.2rem',
+                  background: 'rgba(0,0,0,0.8)',
+                  border: '2px solid #00f3ff',
+                  borderRadius: '8px',
+                  color: 'white',
+                  outline: 'none',
+                  textAlign: 'center',
+                  boxShadow: '0 0 20px rgba(0,243,255,0.3)'
+                }}
+              />
+            </form>
+
+            {/* Scoreboard */}
+            <div style={{ 
+              marginTop: '30px', 
+              padding: '15px',
+              background: 'rgba(0,0,0,0.5)',
+              borderRadius: '10px',
+              border: '1px solid #333'
+            }}>
+              <div style={{ color: '#888', fontSize: '0.9rem', marginBottom: '10px' }}>
+                PONTOK:
               </div>
-            ) : (
-              <div className="glass-card" style={{textAlign:'center'}}>
-                <h2 style={{color:'#ffdd00'}}>Most a többiek téged pontoznak...</h2>
-                <p style={{color:'#aaa'}}>Várakozás a szavazatokra</p>
-              </div>
+              {roomData.players
+                .sort((a, b) => b.score - a.score)
+                .map((player, i) => (
+                  <div 
+                    key={i}
+                    style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      padding: '5px 10px',
+                      background: player.name === playerName ? 'rgba(0,243,255,0.1)' : 'transparent'
+                    }}
+                  >
+                    <span>{i + 1}. {player.name}</span>
+                    <span style={{ color: '#00ff88', fontWeight: 'bold' }}>
+                      {player.score}
+                    </span>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+
+        {/* ==================== GAME OVER ==================== */}
+        {screen === 'GAME_OVER' && roomData && (
+          <div style={{ 
+            pointerEvents: 'auto', 
+            background: 'rgba(0,0,0,0.9)', 
+            padding: '40px', 
+            border: '3px solid #ff0055', 
+            borderRadius: '20px',
+            boxShadow: '0 0 50px rgba(255,0,85,0.8)'
+          }}>
+            <h1 style={{ 
+              color: '#ff0055', 
+              fontSize: '4rem', 
+              margin: '0 0 20px 0',
+              textShadow: '0 0 30px #ff0055'
+            }}>
+              💥 BUMM!
+            </h1>
+            
+            <p style={{ fontSize: '1.2rem', color: '#aaa', marginBottom: '30px' }}>
+              Lejárt az idő a {roomData.currentRound}. körben!
+            </p>
+
+            <div style={{ 
+              background: 'rgba(0,0,0,0.5)',
+              padding: '20px',
+              borderRadius: '10px',
+              marginBottom: '30px'
+            }}>
+              <h3 style={{ color: '#00f3ff', margin: '0 0 15px 0' }}>
+                🏆 VÉGEREDMÉNY
+              </h3>
+              {roomData.players
+                .sort((a, b) => b.score - a.score)
+                .map((player, i) => (
+                  <div 
+                    key={i}
+                    style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      padding: '10px 15px',
+                      margin: '5px 0',
+                      background: i === 0 ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.05)',
+                      borderRadius: '5px',
+                      fontSize: '1.1rem'
+                    }}
+                  >
+                    <span>
+                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`} 
+                      {' '}{player.name}
+                    </span>
+                    <span style={{ 
+                      color: i === 0 ? '#ffd700' : '#00ff88', 
+                      fontWeight: 'bold' 
+                    }}>
+                      {player.score} pont
+                    </span>
+                  </div>
+                ))
+              }
+            </div>
+
+            {isHost && (
+              <button 
+                onClick={handleRestart}
+                style={{
+                  padding: '15px 40px',
+                  fontSize: '1.1rem',
+                  background: '#00f3ff',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  marginRight: '10px'
+                }}
+              >
+                ÚJ JÁTÉK
+              </button>
             )}
-          </div>
-        )}
 
-        {(view === 'WAITING' || view === 'WAITING_VOTE') && (
-          <div className="container" style={{justifyContent:'center', alignItems:'center'}}>
-            <div style={{fontSize:'5rem', animation:'pulse 1.5s infinite', textAlign:'center'}}>⏳</div>
-            <h2 style={{textAlign:'center'}}>{view === 'WAITING' ? 'VÁRAKOZÁS A TÖBBI JÁTÉKOSOKRA...' : 'SZAVAZATOK ÖSSZESÍTÉSE...'}</h2>
-            <p style={{textAlign:'center', color:'#888', maxWidth:'400px'}}>A játék automatikusan folytatódik, amint mindenki kész</p>
-          </div>
-        )}
-
-        {view === 'LEADERBOARD' && state && (
-          <div className="container">
-            <h1 style={{textAlign:'center', fontSize:'3.5rem', color:'#ff00de', marginBottom:'30px'}}>VÉGEREDMÉNY</h1>
-            {state.players?.sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).map((p: any, i: number) => (
-              <div key={p.name} className="glass-card" style={{display:'flex', justifyContent:'space-between', alignItems:'center', background: p.name === myName ? 'rgba(255, 0, 222, 0.2)' : 'rgba(15, 10, 25, 0.9)', border: i === 0 ? '2px solid #ffdd00' : undefined}}>
-                <div style={{fontSize:'1.3rem'}}>{i === 0 && '🏆 '} #{i + 1} {p.name} {p.name === myName && '(TE)'}</div>
-                <div style={{fontSize:'2rem', color:'#00f3ff', fontWeight:'bold'}}>{p.score || 0}</div>
-              </div>
-            ))}
-            {role === 'HOST' && <button className="btn-action" onClick={startRound} disabled={loading}>{loading ? 'FELDOLGOZÁS...' : 'ÚJ JÁTÉK INDÍTÁSA'}</button>}
-            <button className="btn-action" style={{background:'#222', marginTop:'10px'}} onClick={() => { setView('MENU'); setRole(null); setRoomId(''); setState(null); }}>VISSZA A FŐMENÜBE</button>
+            <button 
+              onClick={handleLeave}
+              style={{
+                padding: '15px 40px',
+                fontSize: '1.1rem',
+                background: '#444',
+                color: 'white',
+                border: '1px solid #666',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              KILÉPÉS
+            </button>
           </div>
         )}
       </div>
